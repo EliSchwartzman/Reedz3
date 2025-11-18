@@ -146,20 +146,27 @@ def place_prediction_page():
                 st.error(str(e))
 
 
+# Cache a mapping of user_id to username for efficient lookup
+@st.cache_data(show_spinner=False)
+def get_user_map():
+    users = supabase_db.get_all_users()
+    return {user.user_id: user.username for user in users}
+
+
 def view_predictions_page():
     st.header("View Predictions for a Bet")
     all_bets = supabase_db.client.table("bets").select("*").execute().data or []
     bet_titles = {bet['bet_id']: bet['title'] for bet in all_bets}
-    selected_bet = st.selectbox("Select Bet", options=list(bet_titles.keys()), format_func=lambda x: bet_titles[x] )
+    selected_bet = st.selectbox("Select Bet", options=list(bet_titles.keys()), format_func=lambda x: bet_titles[x])
     if selected_bet:
         preds = supabase_db.get_predictions_by_bet(selected_bet)
         if not preds:
             st.info("No predictions placed yet.")
-        else:
-            for p in preds:
-                user = supabase_db.get_user_by_username(p.user_id)
-                username = user.username if user else p.user_id
-                st.write(f"User: {username} - Prediction: {p.prediction}")
+            return
+        user_map = get_user_map()
+        for p in preds:
+            username = user_map.get(p.user_id, p.user_id)  # fallback to UUID if not found
+            st.write(f"User: {username} - Prediction: {p.prediction}")
 
 
 def admin_user_management():
