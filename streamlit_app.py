@@ -6,13 +6,14 @@ import supabase_db
 import datetime
 import bcrypt
 
-st.set_page_config(page_title="Reedz Betting Platform")
+st.set_page_config(page_title="Reedz Betting Platform", layout="wide")
 
-# Initialize session state keys safely
 if "user" not in st.session_state:
     st.session_state.user = None
 if "page" not in st.session_state:
     st.session_state.page = "login"
+if "submenu" not in st.session_state:
+    st.session_state.submenu = None
 
 
 def hash_password(password: str) -> str:
@@ -49,7 +50,6 @@ def register_page():
         if not username or not email or not password:
             st.error("Please fill in all required fields.")
             return
-
         if supabase_db.get_user_by_username(username):
             st.error("Username already taken.")
             return
@@ -76,42 +76,8 @@ def register_page():
         st.experimental_rerun()
 
 
-def member_home():
-    st.title("Reedz Predictions")
-    st.write(f"Welcome {st.session_state.user.username} ({st.session_state.user.role.value})")
-
-    if st.button("Logout"):
-        st.session_state.user = None
-        st.session_state.page = "login"
-        st.experimental_rerun()
-
-    st.subheader("Open Bets")
-
-    bets = supabase_db.client.table("bets").select("*").eq("is_closed", False).execute().data or []
-    for bet in bets:
-        st.write(f"**{bet['title']}** - {bet['description']} (Close at: {bet['close_at']})")
-        with st.form(f"predict_{bet['bet_id']}"):
-            pred = st.text_input(f"Your prediction for {bet['title']}", key=f"input_{bet['bet_id']}")
-            submitted = st.form_submit_button("Place Prediction")
-            if submitted:
-                try:
-                    betting.place_prediction(st.session_state.user, bet['bet_id'], pred)
-                    st.success("Prediction placed!")
-                except Exception as e:
-                    st.error(str(e))
-
-
-def admin_panel():
-    st.title("Admin Panel")
-    st.write(f"Welcome {st.session_state.user.username} (Admin)")
-
-    if st.button("Logout"):
-        st.session_state.user = None
-        st.session_state.page = "login"
-        st.experimental_rerun()
-
-    # --- Create Bet ---
-    st.subheader("Create Bet")
+def admin_create_bet():
+    st.header("Create Bet")
     with st.form("create_bet_form"):
         title = st.text_input("Title")
         description = st.text_area("Description")
@@ -124,60 +90,136 @@ def admin_panel():
             try:
                 betting.create_bet(st.session_state.user, title, description, answer_type, close_at)
                 st.success("Bet created successfully.")
+            except Exception as e:
+                st.error(str(e))
+
+
+def admin_close_bet():
+    st.header("Close Bet")
+    open_bets = supabase_db.client.table("bets").select("*").eq("is_closed", False).execute().data or []
+    if not open_bets:
+        st.info("No open bets to close.")
+        return
+    for bet in open_bets:
+        st.write(f"**{bet['title']}** - Closes at {bet['close_at']}")
+        if st.button(f"Close Bet {bet['bet_id']}", key=f"close_{bet['bet_id']}"):
+            try:
+                betting.close_bet(st.session_state.user, bet['bet_id'])
+                st.success("Bet closed.")
                 st.experimental_rerun()
             except Exception as e:
                 st.error(str(e))
 
-    # --- Bets Overview ---
-    st.subheader("Manage Bets")
 
-    # Fetch all bets (open and closed)
-    all_bets = supabase_db.client.table("bets").select("*").order("created_at", desc=True).execute().data or []
+def admin_resolve_bet():
+    st.header("Resolve Bet")
+    closed_unresolved = supabase_db.client.table("bets").select("*").eq("is_closed", True).eq("is_resolved", False).execute().data or []
+    if not closed_unresolved:
+        st.info("No bets to resolve.")
+        return
+    for bet in closed_unresolved:
+        st.subheader(bet["title"])
+        answer = st.text_input("Enter correct answer", key=f"answer_{bet['bet_id']}")
+        if st.button(f"Resolve Bet {bet['bet_id']}", key=f"resolve_{bet['bet_id']}"):
+            try:
+                betting.resolve_bet(st.session_state.user, bet["bet_id"], answer)
+                st.success("Bet resolved and points distributed.")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(str(e))
 
-    for bet in all_bets:
-        st.markdown(f"### {bet['title']}  (Status: {'Resolved' if bet['is_resolved'] else ('Closed' if bet['is_closed'] else 'Open')})")
-        st.write(f"Description: {bet['description']}")
-        st.write(f"Close At: {bet['close_at']}")
-        st.write(f"Created At: {bet['created_at']}")
 
-        if not bet['is_closed']:
-            # Button to close bet immediately
-            if st.button(f"Close Bet {bet['bet_id']}", key=f"close_{bet['bet_id']}"):
-                try:
-                    betting.close_bet(st.session_state.user, bet['bet_id'])
-                    st.success("Bet closed.")
-                    st.experimental_rerun()
-                except Exception as e:
-                    st.error(str(e))
+def place_prediction_page():
+    st.header("Place Prediction")
+    open_bets = supabase_db.client.table("bets").select("*").eq("is_closed", False).execute().data or []
+    if not open_bets:
+        st.info("No open bets available.")
+        return
+    for bet in open_bets:
+        st.subheader(bet["title"])
+        prediction = st.text_input(f"Your prediction for {bet['title']}", key=f"pred_{bet['bet_id']}")
+        if st.button(f"Place Prediction {bet['bet_id']}", key=f"place_{bet['bet_id']}"):
+            try:
+                betting.place_prediction(st.session_state.user, bet['bet_id'], prediction)
+                st.success("Prediction placed!")
+            except Exception as e:
+                st.error(str(e))
+
+
+def view_predictions_page():
+    st.header("View Predictions for a Bet")
+    all_bets = supabase_db.client.table("bets").select("*").execute().data or []
+    bet_titles = {bet['bet_id']: bet['title'] for bet in all_bets}
+    selected_bet = st.selectbox("Select Bet", options=list(bet_titles.keys()), format_func=lambda x: bet_titles[x] )
+    if selected_bet:
+        preds = supabase_db.get_predictions_by_bet(selected_bet)
+        if not preds:
+            st.info("No predictions placed yet.")
         else:
-            st.write("This bet is closed.")
-
-        # Show predictions for this bet
-        st.write("Predictions:")
-        predictions = supabase_db.get_predictions_by_bet(bet['bet_id'])
-        if predictions:
-            for p in predictions:
-                user = supabase_db.get_user_by_username(p.user_id)  # Consider caching for efficiency
+            for p in preds:
+                user = supabase_db.get_user_by_username(p.user_id)
                 username = user.username if user else p.user_id
                 st.write(f"User: {username} - Prediction: {p.prediction}")
-        else:
-            st.write("No predictions yet.")
 
-        # If bet is closed and not resolved, allow to resolve by entering correct answer
-        if bet['is_closed'] and not bet['is_resolved']:
-            with st.form(f"resolve_form_{bet['bet_id']}"):
-                correct_answer = st.text_input("Enter correct answer to resolve this bet")
-                submitted = st.form_submit_button("Resolve Bet")
-                if submitted:
-                    try:
-                        betting.resolve_bet(st.session_state.user, bet['bet_id'], correct_answer)
-                        st.success("Bet resolved and points distributed.")
-                        st.experimental_rerun()
-                    except Exception as e:
-                        st.error(str(e))
 
-        st.markdown("---")
+def admin_user_management():
+    st.header("User Management")
+    users = supabase_db.get_all_users()
+    for user in users:
+        cols = st.columns([2, 1, 2, 2, 2])
+        cols[0].write(user.username)
+        cols[1].write(user.role.value)
+        cols[2].write(user.reedz)
 
+        if cols[3].button("Promote to Admin", key=f"promote_{user.user_id}"):
+            supabase_db.promote_demote_user(user.user_id, Role.ADMIN.value)
+            st.experimental_rerun()
+        if cols[4].button("Demote to Member", key=f"demote_{user.user_id}"):
+            supabase_db.promote_demote_user(user.user_id, Role.MEMBER.value)
+            st.experimental_rerun()
+        if cols[4].button("Delete User", key=f"delete_{user.user_id}"):
+            supabase_db.delete_user_account(user.user_id)
+            st.experimental_rerun()
+
+
+def admin_panel():
+    st.sidebar.title("Admin Menu")
+    submenu = st.sidebar.radio("Go to:", [
+        "Create Bet",
+        "Close Bet",
+        "Resolve Bet",
+        "Place Prediction",
+        "See Predictions",
+        "User Management"
+    ])
+    st.session_state.submenu = submenu
+
+    if submenu == "Create Bet":
+        admin_create_bet()
+    elif submenu == "Close Bet":
+        admin_close_bet()
+    elif submenu == "Resolve Bet":
+        admin_resolve_bet()
+    elif submenu == "Place Prediction":
+        place_prediction_page()
+    elif submenu == "See Predictions":
+        view_predictions_page()
+    elif submenu == "User Management":
+        admin_user_management()
+
+
+def member_panel():
+    st.sidebar.title("Member Menu")
+    submenu = st.sidebar.radio("Go to:", [
+        "Place Prediction",
+        "See Predictions"
+    ])
+    st.session_state.submenu = submenu
+
+    if submenu == "Place Prediction":
+        place_prediction_page()
+    elif submenu == "See Predictions":
+        view_predictions_page()
 
 
 def main():
@@ -192,7 +234,7 @@ def main():
         elif st.session_state.user.role == Role.ADMIN:
             admin_panel()
         else:
-            member_home()
+            member_panel()
 
 
 if __name__ == "__main__":
