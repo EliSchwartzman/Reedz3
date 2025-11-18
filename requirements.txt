@@ -1,0 +1,6 @@
+streamlit
+supabase-py
+bcrypt
+pytest
+
+"lkvDujFoXSyIC6UY"

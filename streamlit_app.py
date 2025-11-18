@@ -1,0 +1,83 @@
+import streamlit as st
+from models import Role, AnswerType
+import auth
+import betting
+import supabase_db
+import datetime
+
+st.set_page_config(page_title="Reedz Betting Platform")
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+def login_page():
+    st.title("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        user = auth.login(username, password)
+        if user:
+            st.session_state.user = user
+            st.experimental_rerun()
+        else:
+            st.error("Invalid credentials")
+
+def logout():
+    st.session_state.user = None
+    st.experimental_rerun()
+
+def member_home():
+    st.title("Reedz Predictions")
+    st.write(f"Welcome {st.session_state.user.username} ({st.session_state.user.role.value})")
+    if st.button("Logout"):
+        logout()
+
+    st.subheader("Open Bets")
+    bets = supabase_db.client.table("bets").select("*").eq("is_closed", False).execute().data
+    for bet in bets:
+        st.write(f"**{bet['title']}** - {bet['description']} (Close at: {bet['close_at']})")
+        with st.form(f"predict_{bet['bet_id']}"):
+            pred = st.text_input(f"Your prediction for {bet['title']}")
+            submitted = st.form_submit_button("Place Prediction")
+            if submitted:
+                try:
+                    betting.place_prediction(st.session_state.user, bet['bet_id'], pred)
+                    st.success("Prediction placed!")
+                except Exception as e:
+                    st.error(str(e))
+
+def admin_panel():
+    st.title("Admin Panel")
+    st.subheader("Create Bet")
+    with st.form("create_bet_form"):
+        title = st.text_input("Title")
+        description = st.text_area("Description")
+        answer_type = st.selectbox("Answer type", [AnswerType.NUMBER, AnswerType.TEXT])
+        close_date = st.date_input("Close Date", value=datetime.date.today())
+        close_time = st.time_input("Close Time", value=datetime.time(hour=23, minute=59))
+        submitted = st.form_submit_button("Create Bet")
+        if submitted:
+            close_at = datetime.datetime.combine(close_date, close_time)
+            try:
+                betting.create_bet(st.session_state.user, title, description, answer_type, close_at)
+                st.success("Bet created.")
+            except Exception as e:
+                st.error(str(e))
+
+    st.subheader("User Management")
+    users = supabase_db.get_all_users()
+    for user in users:
+        st.write(f"{user.username} | Role: {user.role.value} | Reedz: {user.reedz}")
+        # Add user management options here (promote/demote, delete, adjust points)
+
+def main():
+    if st.session_state.user is None:
+        login_page()
+    else:
+        if st.session_state.user.role == Role.ADMIN:
+            admin_panel()
+        else:
+            member_home()
+
+if __name__ == "__main__":
+    main()
