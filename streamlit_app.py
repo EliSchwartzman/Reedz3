@@ -6,6 +6,9 @@ from datetime import datetime
 # Use Streamlit secrets for sensitive info
 url = st.secrets.get("SUPABASE_URL")
 key = st.secrets.get("SUPABASE_KEY")
+if not url or not key:
+    st.error("Supabase URL or Key is not set in secrets!")
+    st.stop()  # Stop the app if connection can't be established
 
 if not url or not key:
     raise RuntimeError("Supabase URL and KEY must be set in Streamlit secrets")
