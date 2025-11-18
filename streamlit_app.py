@@ -1,5 +1,5 @@
 import streamlit as st
-from models import Role, AnswerType
+from models import Role, AnswerType, User
 import auth
 import betting
 import supabase_db
@@ -9,6 +9,10 @@ st.set_page_config(page_title="Reedz Betting Platform")
 
 if "user" not in st.session_state:
     st.session_state.user = None
+
+def hash_password(password: str) -> str:
+    import bcrypt
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def login_page():
     st.title("Login")
@@ -21,16 +25,62 @@ def login_page():
             st.experimental_rerun()
         else:
             st.error("Invalid credentials")
+    if st.button("Register Here"):
+        st.session_state.page = "register"
 
-def logout():
-    st.session_state.user = None
-    st.experimental_rerun()
+def register_page():
+    st.title("Register")
+    username = st.text_input("Username")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+    admin_code = st.text_input("Admin Code (optional)", type="password")
+    
+    if st.button("Register"):
+        if not username or not email or not password:
+            st.error("Please fill in all required fields.")
+            return
+
+        if supabase_db.get_user_by_username(username):
+            st.error("Username already taken.")
+            return
+        
+        # Determine user role
+        role = Role.ADMIN if admin_code == "Reedz123" else Role.MEMBER
+        
+        # Hash password
+        password_hash = hash_password(password)
+
+        # Create new user object
+        from datetime import datetime
+        user = User(
+            user_id=None,  # Will be set by Supabase
+            username=username,
+            password_hash=password_hash,
+            email=email,
+            created_at=datetime.utcnow(),
+            role=role,
+            reedz=0
+        )
+        try:
+            supabase_db.insert_user(user)
+            st.success(f"User {username} created successfully as {role.value}!")
+            # Auto-login after registration
+            st.session_state.user = supabase_db.get_user_by_username(username)
+            st.session_state.page = "home"
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Error creating user: {e}")
+
+    if st.button("Back to Login"):
+        st.session_state.page = "login"
+        st.experimental_rerun()
 
 def member_home():
     st.title("Reedz Predictions")
     st.write(f"Welcome {st.session_state.user.username} ({st.session_state.user.role.value})")
     if st.button("Logout"):
-        logout()
+        st.session_state.user = None
+        st.experimental_rerun()
 
     st.subheader("Open Bets")
     bets = supabase_db.client.table("bets").select("*").eq("is_closed", False).execute().data
@@ -71,10 +121,18 @@ def admin_panel():
         # Add user management options here (promote/demote, delete, adjust points)
 
 def main():
-    if st.session_state.user is None:
+    if "page" not in st.session_state:
+        st.session_state.page = "login"
+
+    if st.session_state.page == "login":
         login_page()
+    elif st.session_state.page == "register":
+        register_page()
     else:
-        if st.session_state.user.role == Role.ADMIN:
+        if st.session_state.user is None:
+            st.session_state.page = "login"
+            st.experimental_rerun()
+        elif st.session_state.user.role == Role.ADMIN:
             admin_panel()
         else:
             member_home()
