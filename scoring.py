@@ -1,61 +1,51 @@
 from models import Bet, Prediction
-from collections import defaultdict
 
 
 def distribute_reedz(bet: Bet, predictions: list[Prediction]):
     participants = len(predictions)
     if participants == 0:
-        return  # No points to distribute
+        return
 
-    if bet.answer_type.name == "NUMBER":
+    if bet.answer_type == Bet.answer_type.NUMBER:
         _score_numeric(bet, predictions, participants)
     else:
         _score_text(bet, predictions, participants)
 
 
 def _score_numeric(bet: Bet, predictions: list[Prediction], participants: int):
-    # Sort predictions by absolute distance to resolved answer, ascending
-    resolved_answer = bet.resolved_answer
-    pred_tuples = []
-    for p in predictions:
-        distance = abs(p.prediction - resolved_answer)
-        pred_tuples.append((p, distance))
-    pred_tuples.sort(key=lambda x: x[1])
-
-    # Assign reedz scores starting from highest (#participants)
-    current_points = participants
-    last_distance = None
-    tied_preds = []
-
-    for i, (pred, dist) in enumerate(pred_tuples):
-        if dist != last_distance:
-            # Distribute points to tied preds
-            for tp in tied_preds:
-                _award_reedz(tp.user_id, current_points)
-            tied_preds.clear()
-            current_points = participants - i
-
-        tied_preds.append(pred)
-        last_distance = dist
-
-    # Award for tie group remaining in tied_preds
-    for tp in tied_preds:
-        _award_reedz(tp.user_id, current_points)
-
-    # Bonus for exact match
+    resolved = bet.resolved_answer
+    pred_dist = []
     for pred in predictions:
-        if pred.prediction == resolved_answer:
+        dist = abs(pred.prediction - resolved)
+        pred_dist.append((pred, dist))
+    pred_dist.sort(key=lambda x: x[1])
+    current_points = participants
+    last_dist = None
+    tied = []
+
+    for i, (pred, dist) in enumerate(pred_dist):
+        if dist != last_dist:
+            for p in tied:
+                _award_reedz(p.user_id, current_points)
+            tied = []
+            current_points = participants - i
+        tied.append(pred)
+        last_dist = dist
+
+    for p in tied:
+        _award_reedz(p.user_id, current_points)
+
+    for pred in predictions:
+        if pred.prediction == resolved:
             _award_reedz(pred.user_id, 5)
 
 
 def _score_text(bet: Bet, predictions: list[Prediction], participants: int):
-    resolved_answer = bet.resolved_answer.strip().lower()
+    answer = bet.resolved_answer.strip().lower()
     for pred in predictions:
-        if pred.prediction.strip().lower() == resolved_answer:
+        if pred.prediction.strip().lower() == answer:
             _award_reedz(pred.user_id, participants)
-            _award_reedz(pred.user_id, 5)  # Bonus for exact match
-        else:
-            continue
+            _award_reedz(pred.user_id, 5)
 
 
 def _award_reedz(user_id: str, reedz: int):

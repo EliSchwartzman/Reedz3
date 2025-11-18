@@ -3,9 +3,8 @@ from supabase import create_client, Client
 from models import User, Bet, Prediction, Role, AnswerType
 from datetime import datetime
 
-# Use Streamlit secrets for safe loading of keys
-url = st.secrets["database"]["url"]
-key = st.secrets["database"]["key"]
+url = st.secrets.get("SUPABASE_URL")
+key = st.secrets.get("SUPABASE_KEY")
 
 if not url or not key:
     raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in Streamlit secrets.")
@@ -137,7 +136,7 @@ def get_predictions_by_bet(bet_id: str) -> list[Prediction]:
             created_at=datetime.fromisoformat(d["created_at"])
         ) for d in res.data]
     except Exception as e:
-        st.error(f"Error fetching predictions: {e}")
+        st.error(f"Error fetching predictions by bet: {e}")
         return []
 
 

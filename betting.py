@@ -1,6 +1,5 @@
 from datetime import datetime
-from typing import Optional
-from models import Bet, Prediction, AnswerType, Role, User
+from models import Bet, Prediction, AnswerType, User
 import supabase_db
 import auth
 import scoring
@@ -47,7 +46,6 @@ def resolve_bet(user: User, bet_id: str, resolved_answer: str):
         bet.resolved_answer = resolved_answer.strip()
     supabase_db.update_bet(bet)
 
-    # Distribute reedz based on scoring system
     predictions = supabase_db.get_predictions_by_bet(bet_id)
     scoring.distribute_reedz(bet, predictions)
 
@@ -57,7 +55,6 @@ def place_prediction(user: User, bet_id: str, prediction: str):
     bet = supabase_db.get_bet(bet_id)
     if bet.is_closed:
         raise ValueError("Bet is closed. Cannot place prediction.")
-    # Check if user already predicted
     if supabase_db.get_prediction_by_bet_and_user(bet_id, user.user_id):
         raise ValueError("User has already placed a prediction on this bet.")
 
