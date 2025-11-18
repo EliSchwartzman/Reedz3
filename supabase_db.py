@@ -1,26 +1,19 @@
+import streamlit as st
 from supabase import create_client, Client
 from models import User, Bet, Prediction, Role, AnswerType
 from datetime import datetime
 
-import os
+# Use Streamlit secrets for safe loading of keys
+url = st.secrets.get("SUPABASE_URL")
+key = st.secrets.get("SUPABASE_KEY")
 
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")
+if not url or not key:
+    raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in Streamlit secrets.")
 
 client: Client = create_client(url, key)
 
 
-# User operations
-def get_user_by_username(username: str) -> User:
-    res = client.table("users").select("*").eq("username", username).single().execute()
-    data = res.data
-    if not data:
-        return None
-    return _user_from_dict(data)
-
-
 def _user_from_dict(data) -> User:
-    from models import Role
     return User(
         user_id=data["user_id"],
         username=data["username"],
@@ -32,112 +25,178 @@ def _user_from_dict(data) -> User:
     )
 
 
+def get_user_by_username(username: str) -> User:
+    if not username:
+        return None
+    try:
+        res = client.table("users").select("*").eq("username", username).single().execute()
+        data = res.data
+        if not data:
+            return None
+        return _user_from_dict(data)
+    except Exception as e:
+        st.error(f"Error fetching user by username: {e}")
+        return None
+
+
+def insert_user(user: User) -> User:
+    try:
+        res = client.table("users").insert({
+            "username": user.username,
+            "password_hash": user.password_hash,
+            "email": user.email,
+            "created_at": user.created_at.isoformat(),
+            "role": user.role.value,
+            "reedz": user.reedz
+        }).execute()
+        user.user_id = res.data[0]["user_id"]
+        return user
+    except Exception as e:
+        st.error(f"Error inserting user: {e}")
+        raise
+
+
 def insert_bet(bet: Bet) -> Bet:
-    res = client.table("bets").insert({
-        "user_id": bet.user_id,
-        "title": bet.title,
-        "description": bet.description,
-        "answer_type": bet.answer_type.value,
-        "created_at": bet.created_at.isoformat(),
-        "close_at": bet.close_at.isoformat() if bet.close_at else None,
-        "is_closed": bet.is_closed,
-        "is_resolved": bet.is_resolved
-    }).execute()
-    bet_id = res.data[0]["bet_id"]
-    bet.bet_id = bet_id
-    return bet
+    try:
+        res = client.table("bets").insert({
+            "user_id": bet.user_id,
+            "title": bet.title,
+            "description": bet.description,
+            "answer_type": bet.answer_type.value,
+            "created_at": bet.created_at.isoformat(),
+            "close_at": bet.close_at.isoformat() if bet.close_at else None,
+            "is_closed": bet.is_closed,
+            "is_resolved": bet.is_resolved
+        }).execute()
+        bet.bet_id = res.data[0]["bet_id"]
+        return bet
+    except Exception as e:
+        st.error(f"Error inserting bet: {e}")
+        raise
 
 
 def get_bet(bet_id: str) -> Bet:
-    res = client.table("bets").select("*").eq("bet_id", bet_id).single().execute()
-    data = res.data
-    from models import AnswerType
-    return Bet(
-        bet_id=data["bet_id"],
-        user_id=data["user_id"],
-        title=data["title"],
-        description=data["description"],
-        answer_type=AnswerType(data["answer_type"]),
-        created_at=datetime.fromisoformat(data["created_at"]),
-        close_at=datetime.fromisoformat(data["close_at"]) if data["close_at"] else None,
-        is_closed=data["is_closed"],
-        is_resolved=data["is_resolved"],
-        resolve_at=datetime.fromisoformat(data["resolve_at"]) if data["resolve_at"] else None,
-        resolved_answer=data.get("resolved_answer")
-    )
+    try:
+        res = client.table("bets").select("*").eq("bet_id", bet_id).single().execute()
+        data = res.data
+        from models import AnswerType
+        return Bet(
+            bet_id=data["bet_id"],
+            user_id=data["user_id"],
+            title=data["title"],
+            description=data["description"],
+            answer_type=AnswerType(data["answer_type"]),
+            created_at=datetime.fromisoformat(data["created_at"]),
+            close_at=datetime.fromisoformat(data["close_at"]) if data["close_at"] else None,
+            is_closed=data["is_closed"],
+            is_resolved=data["is_resolved"],
+            resolve_at=datetime.fromisoformat(data["resolve_at"]) if data["resolve_at"] else None,
+            resolved_answer=data.get("resolved_answer")
+        )
+    except Exception as e:
+        st.error(f"Error fetching bet: {e}")
+        return None
 
 
 def update_bet(bet: Bet):
-    client.table("bets").update({
-        "close_at": bet.close_at.isoformat() if bet.close_at else None,
-        "is_closed": bet.is_closed,
-        "is_resolved": bet.is_resolved,
-        "resolve_at": bet.resolve_at.isoformat() if bet.resolve_at else None,
-        "resolved_answer": bet.resolved_answer,
-    }).eq("bet_id", bet.bet_id).execute()
+    try:
+        client.table("bets").update({
+            "close_at": bet.close_at.isoformat() if bet.close_at else None,
+            "is_closed": bet.is_closed,
+            "is_resolved": bet.is_resolved,
+            "resolve_at": bet.resolve_at.isoformat() if bet.resolve_at else None,
+            "resolved_answer": bet.resolved_answer,
+        }).eq("bet_id", bet.bet_id).execute()
+    except Exception as e:
+        st.error(f"Error updating bet: {e}")
+        raise
 
 
 def insert_prediction(prediction: Prediction):
-    client.table("predictions").insert({
-        "bet_id": prediction.bet_id,
-        "user_id": prediction.user_id,
-        "prediction": prediction.prediction,
-        "created_at": prediction.created_at.isoformat()
-    }).execute()
+    try:
+        client.table("predictions").insert({
+            "bet_id": prediction.bet_id,
+            "user_id": prediction.user_id,
+            "prediction": prediction.prediction,
+            "created_at": prediction.created_at.isoformat()
+        }).execute()
+    except Exception as e:
+        st.error(f"Error inserting prediction: {e}")
+        raise
 
 
 def get_predictions_by_bet(bet_id: str) -> list[Prediction]:
-    res = client.table("predictions").select("*").eq("bet_id", bet_id).execute()
-    from models import Prediction
-    predictions = []
-    for data in res.data:
-        predictions.append(Prediction(
+    try:
+        from models import Prediction
+        res = client.table("predictions").select("*").eq("bet_id", bet_id).execute()
+        return [Prediction(
+            prediction_id=d["prediction_id"],
+            bet_id=d["bet_id"],
+            user_id=d["user_id"],
+            prediction=d["prediction"],
+            created_at=datetime.fromisoformat(d["created_at"])
+        ) for d in res.data]
+    except Exception as e:
+        st.error(f"Error fetching predictions: {e}")
+        return []
+
+
+def get_prediction_by_bet_and_user(bet_id: str, user_id: str) -> Prediction:
+    try:
+        res = client.table("predictions").select("*").eq("bet_id", bet_id).eq("user_id", user_id).single().execute()
+        data = res.data
+        if not data:
+            return None
+        return Prediction(
             prediction_id=data["prediction_id"],
             bet_id=data["bet_id"],
             user_id=data["user_id"],
             prediction=data["prediction"],
             created_at=datetime.fromisoformat(data["created_at"])
-        ))
-    return predictions
-
-
-def get_prediction_by_bet_and_user(bet_id: str, user_id: str) -> Prediction:
-    res = client.table("predictions").select("*").eq("bet_id", bet_id).eq("user_id", user_id).single().execute()
-    data = res.data
-    if not data:
+        )
+    except Exception as e:
+        st.error(f"Error fetching prediction: {e}")
         return None
-    return Prediction(
-        prediction_id=data["prediction_id"],
-        bet_id=data["bet_id"],
-        user_id=data["user_id"],
-        prediction=data["prediction"],
-        created_at=datetime.fromisoformat(data["created_at"])
-    )
 
 
 def increment_reedz(user_id: str, amount: int):
-    # Read current reedz
-    res = client.table("users").select("reedz").eq("user_id", user_id).single().execute()
-    current = res.data.get("reedz", 0)
-    client.table("users").update({"reedz": current + amount}).eq("user_id", user_id).execute()
+    try:
+        res = client.table("users").select("reedz").eq("user_id", user_id).single().execute()
+        current = res.data.get("reedz", 0) if res.data else 0
+        client.table("users").update({"reedz": current + amount}).eq("user_id", user_id).execute()
+    except Exception as e:
+        st.error(f"Error incrementing reedz: {e}")
+        raise
 
 
-# Additional user management for admin panel
 def get_all_users() -> list[User]:
-    res = client.table("users").select("*").execute()
-    users = []
-    for data in res.data:
-        users.append(_user_from_dict(data))
-    return users
+    try:
+        res = client.table("users").select("*").execute()
+        return [_user_from_dict(d) for d in res.data]
+    except Exception as e:
+        st.error(f"Error fetching all users: {e}")
+        return []
 
 
 def update_user_reedz(user_id: str, reedz: int):
-    client.table("users").update({"reedz": reedz}).eq("user_id", user_id).execute()
+    try:
+        client.table("users").update({"reedz": reedz}).eq("user_id", user_id).execute()
+    except Exception as e:
+        st.error(f"Error updating user reedz: {e}")
+        raise
 
 
 def delete_user_account(user_id: str):
-    client.table("users").delete().eq("user_id", user_id).execute()
+    try:
+        client.table("users").delete().eq("user_id", user_id).execute()
+    except Exception as e:
+        st.error(f"Error deleting user account: {e}")
+        raise
 
 
 def promote_demote_user(user_id: str, role: str):
-    client.table("users").update({"role": role}).eq("user_id", user_id).execute()
+    try:
+        client.table("users").update({"role": role}).eq("user_id", user_id).execute()
+    except Exception as e:
+        st.error(f"Error promoting/demoting user: {e}")
+        raise
