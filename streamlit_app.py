@@ -110,6 +110,7 @@ def admin_panel():
         st.session_state.page = "login"
         st.experimental_rerun()
 
+    # --- Create Bet ---
     st.subheader("Create Bet")
     with st.form("create_bet_form"):
         title = st.text_input("Title")
@@ -123,14 +124,60 @@ def admin_panel():
             try:
                 betting.create_bet(st.session_state.user, title, description, answer_type, close_at)
                 st.success("Bet created successfully.")
+                st.experimental_rerun()
             except Exception as e:
                 st.error(str(e))
 
-    st.subheader("User Management")
-    users = supabase_db.get_all_users()
-    for user in users:
-        st.write(f"{user.username} | Role: {user.role.value} | Reedz: {user.reedz}")
-        # You can expand here with buttons for promote/demote, delete, and point adjustments
+    # --- Bets Overview ---
+    st.subheader("Manage Bets")
+
+    # Fetch all bets (open and closed)
+    all_bets = supabase_db.client.table("bets").select("*").order("created_at", desc=True).execute().data or []
+
+    for bet in all_bets:
+        st.markdown(f"### {bet['title']}  (Status: {'Resolved' if bet['is_resolved'] else ('Closed' if bet['is_closed'] else 'Open')})")
+        st.write(f"Description: {bet['description']}")
+        st.write(f"Close At: {bet['close_at']}")
+        st.write(f"Created At: {bet['created_at']}")
+
+        if not bet['is_closed']:
+            # Button to close bet immediately
+            if st.button(f"Close Bet {bet['bet_id']}", key=f"close_{bet['bet_id']}"):
+                try:
+                    betting.close_bet(st.session_state.user, bet['bet_id'])
+                    st.success("Bet closed.")
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error(str(e))
+        else:
+            st.write("This bet is closed.")
+
+        # Show predictions for this bet
+        st.write("Predictions:")
+        predictions = supabase_db.get_predictions_by_bet(bet['bet_id'])
+        if predictions:
+            for p in predictions:
+                user = supabase_db.get_user_by_username(p.user_id)  # Consider caching for efficiency
+                username = user.username if user else p.user_id
+                st.write(f"User: {username} - Prediction: {p.prediction}")
+        else:
+            st.write("No predictions yet.")
+
+        # If bet is closed and not resolved, allow to resolve by entering correct answer
+        if bet['is_closed'] and not bet['is_resolved']:
+            with st.form(f"resolve_form_{bet['bet_id']}"):
+                correct_answer = st.text_input("Enter correct answer to resolve this bet")
+                submitted = st.form_submit_button("Resolve Bet")
+                if submitted:
+                    try:
+                        betting.resolve_bet(st.session_state.user, bet['bet_id'], correct_answer)
+                        st.success("Bet resolved and points distributed.")
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error(str(e))
+
+        st.markdown("---")
+
 
 
 def main():
