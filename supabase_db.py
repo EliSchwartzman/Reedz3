@@ -4,8 +4,8 @@ from models import User, Bet, Prediction, Role, AnswerType
 from datetime import datetime
 
 # Use Streamlit secrets for safe loading of keys
-url = st.secrets.get("SUPABASE_URL")
-key = st.secrets.get("SUPABASE_KEY")
+url = st.secrets["database"]["url"]
+key = st.secrets["database"]["key"]
 
 if not url or not key:
     raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in Streamlit secrets.")
