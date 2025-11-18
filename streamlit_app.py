@@ -4,19 +4,18 @@ import auth
 import betting
 import supabase_db
 import datetime
-
+import bcrypt
 
 st.set_page_config(page_title="Reedz Betting Platform")
 
+# Initialize session state keys safely
 if "user" not in st.session_state:
     st.session_state.user = None
-
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
 
 def hash_password(password: str) -> str:
-    import bcrypt
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
@@ -24,6 +23,7 @@ def login_page():
     st.title("Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
+
     if st.button("Login"):
         user = auth.login(username, password)
         if user:
@@ -32,6 +32,7 @@ def login_page():
             st.experimental_rerun()
         else:
             st.error("Invalid credentials")
+
     if st.button("Register Here"):
         st.session_state.page = "register"
         st.experimental_rerun()
@@ -48,6 +49,7 @@ def register_page():
         if not username or not email or not password:
             st.error("Please fill in all required fields.")
             return
+
         if supabase_db.get_user_by_username(username):
             st.error("Username already taken.")
             return
@@ -77,17 +79,19 @@ def register_page():
 def member_home():
     st.title("Reedz Predictions")
     st.write(f"Welcome {st.session_state.user.username} ({st.session_state.user.role.value})")
+
     if st.button("Logout"):
         st.session_state.user = None
         st.session_state.page = "login"
         st.experimental_rerun()
 
     st.subheader("Open Bets")
-    bets = supabase_db.client.table("bets").select("*").eq("is_closed", False).execute().data
+
+    bets = supabase_db.client.table("bets").select("*").eq("is_closed", False).execute().data or []
     for bet in bets:
         st.write(f"**{bet['title']}** - {bet['description']} (Close at: {bet['close_at']})")
         with st.form(f"predict_{bet['bet_id']}"):
-            pred = st.text_input(f"Your prediction for {bet['title']}")
+            pred = st.text_input(f"Your prediction for {bet['title']}", key=f"input_{bet['bet_id']}")
             submitted = st.form_submit_button("Place Prediction")
             if submitted:
                 try:
@@ -99,6 +103,13 @@ def member_home():
 
 def admin_panel():
     st.title("Admin Panel")
+    st.write(f"Welcome {st.session_state.user.username} (Admin)")
+
+    if st.button("Logout"):
+        st.session_state.user = None
+        st.session_state.page = "login"
+        st.experimental_rerun()
+
     st.subheader("Create Bet")
     with st.form("create_bet_form"):
         title = st.text_input("Title")
@@ -111,7 +122,7 @@ def admin_panel():
             close_at = datetime.datetime.combine(close_date, close_time)
             try:
                 betting.create_bet(st.session_state.user, title, description, answer_type, close_at)
-                st.success("Bet created.")
+                st.success("Bet created successfully.")
             except Exception as e:
                 st.error(str(e))
 
@@ -119,7 +130,7 @@ def admin_panel():
     users = supabase_db.get_all_users()
     for user in users:
         st.write(f"{user.username} | Role: {user.role.value} | Reedz: {user.reedz}")
-        # Add user management options here (promote/demote, delete, adjust points)
+        # You can expand here with buttons for promote/demote, delete, and point adjustments
 
 
 def main():
