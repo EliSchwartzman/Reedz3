@@ -14,6 +14,15 @@ if "page" not in st.session_state:
     st.session_state.page = "login"
 if "submenu" not in st.session_state:
     st.session_state.submenu = None
+if "rerun_key" not in st.session_state:
+    st.session_state.rerun_key = 0  # Used to force rerun in fallback
+
+
+def safe_rerun():
+    try:
+        st.experimental_rerun()
+    except AttributeError:
+        st.session_state["rerun_key"] = st.session_state.get("rerun_key", 0) + 1
 
 
 def hash_password(password: str) -> str:
@@ -30,13 +39,13 @@ def login_page():
         if user:
             st.session_state.user = user
             st.session_state.page = "home"
-            st.experimental_rerun()
+            safe_rerun()
         else:
             st.error("Invalid credentials")
 
     if st.button("Register Here"):
         st.session_state.page = "register"
-        st.experimental_rerun()
+        safe_rerun()
 
 
 def register_page():
@@ -69,11 +78,11 @@ def register_page():
         st.success(f"User {username} created successfully as {role.value}!")
         st.session_state.user = supabase_db.get_user_by_username(username)
         st.session_state.page = "home"
-        st.experimental_rerun()
+        safe_rerun()
 
     if st.button("Back to Login"):
         st.session_state.page = "login"
-        st.experimental_rerun()
+        safe_rerun()
 
 
 def admin_create_bet():
@@ -106,7 +115,7 @@ def admin_close_bet():
             try:
                 betting.close_bet(st.session_state.user, bet['bet_id'])
                 st.success("Bet closed.")
-                st.experimental_rerun()
+                safe_rerun()
             except Exception as e:
                 st.error(str(e))
 
@@ -124,7 +133,7 @@ def admin_resolve_bet():
             try:
                 betting.resolve_bet(st.session_state.user, bet["bet_id"], answer)
                 st.success("Bet resolved and points distributed.")
-                st.experimental_rerun()
+                safe_rerun()
             except Exception as e:
                 st.error(str(e))
 
@@ -146,7 +155,6 @@ def place_prediction_page():
                 st.error(str(e))
 
 
-# Cache a mapping of user_id to username for efficient lookup
 @st.cache_data(show_spinner=False)
 def get_user_map():
     users = supabase_db.get_all_users()
@@ -165,7 +173,7 @@ def view_predictions_page():
             return
         user_map = get_user_map()
         for p in preds:
-            username = user_map.get(p.user_id, p.user_id)  # fallback to UUID if not found
+            username = user_map.get(p.user_id, p.user_id)
             st.write(f"User: {username} - Prediction: {p.prediction}")
 
 
@@ -180,13 +188,13 @@ def admin_user_management():
 
         if cols[3].button("Promote to Admin", key=f"promote_{user.user_id}"):
             supabase_db.promote_demote_user(user.user_id, Role.ADMIN.value)
-            st.experimental_rerun()
+            safe_rerun()
         if cols[4].button("Demote to Member", key=f"demote_{user.user_id}"):
             supabase_db.promote_demote_user(user.user_id, Role.MEMBER.value)
-            st.experimental_rerun()
+            safe_rerun()
         if cols[4].button("Delete User", key=f"delete_{user.user_id}"):
             supabase_db.delete_user_account(user.user_id)
-            st.experimental_rerun()
+            safe_rerun()
 
 
 def admin_panel():
@@ -237,7 +245,7 @@ def main():
     else:
         if st.session_state.user is None:
             st.session_state.page = "login"
-            st.experimental_rerun()
+            safe_rerun()
         elif st.session_state.user.role == Role.ADMIN:
             admin_panel()
         else:
