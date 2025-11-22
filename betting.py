@@ -1,73 +1,51 @@
-from datetime import datetime
-from models import Bet, Prediction, AnswerType, User
 import supabase_db
-import auth
-import scoring
+from models import Bet, Prediction, User
+from auth import is_admin, can_place_prediction
+from datetime import datetime
 
-
-def create_bet(user: User, title: str, description: str, answer_type: AnswerType, close_at: datetime):
-    auth.require_admin(user)
+def create_bet(admin_user: User, title, description, answer_type, close_at):
+    if not is_admin(admin_user):
+        raise PermissionError("Only admin can create bets")
     bet = Bet(
         bet_id=None,
-        user_id=user.user_id,
+        created_by_user_id=admin_user.user_id,
         title=title,
         description=description,
         answer_type=answer_type,
-        created_at=datetime.utcnow(),
+        is_open=True,
+        is_resolved=False,
+        created_at=datetime.now(),
         close_at=close_at,
-        is_closed=False,
-        is_resolved=False
+        resolved_at=None,
+        correct_answer=None
     )
-    return supabase_db.insert_bet(bet)
+    return supabase_db.create_bet(bet)
 
+def close_bet(admin_user: User, bet_id):
+    if not is_admin(admin_user):
+        raise PermissionError("Only admin can close bets")
+    return supabase_db.close_bet(bet_id)
 
-def close_bet(user: User, bet_id: str):
-    auth.require_admin(user)
-    bet = supabase_db.get_bet(bet_id)
-    if bet.is_closed:
-        raise ValueError("Bet already closed.")
-    bet.is_closed = True
-    bet.close_at = datetime.utcnow()
-    supabase_db.update_bet(bet)
+def resolve_bet(admin_user: User, bet_id, correct_answer):
+    if not is_admin(admin_user):
+        raise PermissionError("Only admin can resolve bets")
+    supabase_db.resolve_bet(bet_id, correct_answer)
+    from scoring import distribute_reedz_on_resolution
+    distribute_reedz_on_resolution(bet_id)
 
-
-def resolve_bet(user: User, bet_id: str, resolved_answer: str):
-    auth.require_admin(user)
-    bet = supabase_db.get_bet(bet_id)
-    if not bet.is_closed:
-        raise ValueError("Bet must be closed before resolving.")
-    if bet.is_resolved:
-        raise ValueError("Bet already resolved.")
-    bet.is_resolved = True
-    bet.resolve_at = datetime.utcnow()
-    if bet.answer_type == AnswerType.NUMBER:
-        bet.resolved_answer = int(resolved_answer)
-    else:
-        bet.resolved_answer = resolved_answer.strip()
-    supabase_db.update_bet(bet)
-
-    predictions = supabase_db.get_predictions_by_bet(bet_id)
-    scoring.distribute_reedz(bet, predictions)
-
-
-def place_prediction(user: User, bet_id: str, prediction: str):
-    auth.require_member_or_admin(user)
-    bet = supabase_db.get_bet(bet_id)
-    if bet.is_closed:
-        raise ValueError("Bet is closed. Cannot place prediction.")
-    if supabase_db.get_prediction_by_bet_and_user(bet_id, user.user_id):
-        raise ValueError("User has already placed a prediction on this bet.")
-
-    if bet.answer_type == AnswerType.NUMBER:
-        prediction_value = int(prediction)
-    else:
-        prediction_value = prediction.strip()
-
-    pred = Prediction(
+def place_prediction(user: User, bet_id, prediction_value):
+    if not can_place_prediction(user):
+        raise PermissionError("User cannot place predictions")
+    if supabase_db.has_prediction(user.user_id, bet_id):
+        raise Exception("Only one prediction per user per bet")
+    prediction = Prediction(
         prediction_id=None,
-        bet_id=bet_id,
         user_id=user.user_id,
-        prediction=prediction_value,
-        created_at=datetime.utcnow()
+        bet_id=bet_id,
+        prediction=str(prediction_value),
+        created_at=datetime.now()
     )
-    supabase_db.insert_prediction(pred)
+    return supabase_db.create_prediction(prediction)
+
+def get_bet_overview(state: str):
+    return supabase_db.get_bets_by_state(state)

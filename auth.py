@@ -1,32 +1,31 @@
 import bcrypt
-from models import User, Role
 import supabase_db
-
+from models import User
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-
-def verify_password(password: str, hashed: str) -> bool:
+def check_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
-
-def login(username: str, password: str) -> User:
+def authenticate(username: str, password: str):
     user = supabase_db.get_user_by_username(username)
-    if user and verify_password(password, user.password_hash):
+    if user and check_password(password, user.password):
         return user
     return None
 
-
 def is_admin(user: User) -> bool:
-    return user.role == Role.ADMIN
+    return user.role == 'Admin'
 
+def can_place_prediction(user: User) -> bool:
+    return user.role in ['Admin', 'Member']
 
-def require_admin(user: User):
-    if not is_admin(user):
-        raise PermissionError("Admin privileges required.")
+def can_manage_bets(user: User) -> bool:
+    return is_admin(user)
 
-
-def require_member_or_admin(user: User):
-    if not (user and (user.role == Role.ADMIN or user.role == Role.MEMBER)):
-        raise PermissionError("Member or Admin privileges required.")
+def reset_password(email: str, new_password: str) -> bool:
+    user = supabase_db.get_user_by_email(email)
+    if user:
+        hashed = hash_password(new_password)
+        return supabase_db.update_user_password(user.user_id, hashed)
+    return False
