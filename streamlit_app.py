@@ -12,7 +12,6 @@ load_dotenv()
 ADMIN_CODE = os.getenv("ADMIN_CODE")
 st.set_page_config(page_title="Reedz Betting", layout="wide")
 
-# Set session state defaults
 if "user" not in st.session_state:
     st.session_state.user = None
 if "page" not in st.session_state:
@@ -21,7 +20,7 @@ if "page" not in st.session_state:
 def auth_panel():
     st.header("Reedz: Login / Register")
     tab1, tab2, tab3 = st.tabs(["Login", "Register", "Reset Password"])
-    # Login panel
+    # Login
     with tab1:
         username = st.text_input("Username", key="login_username")
         password = st.text_input("Password", type='password', key="login_password")
@@ -31,10 +30,10 @@ def auth_panel():
                 st.session_state.user = user
                 st.success(f"Logged in as {user.username}, role {user.role}")
                 st.session_state.page = "main"
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Login failed")
-    # Register panel
+    # Register
     with tab2:
         username = st.text_input("New Username", key="reg_username")
         password = st.text_input("New Password", type='password', key="reg_password")
@@ -56,7 +55,7 @@ def auth_panel():
                     st.success("Registration successful. Please login.")
                 except Exception as e:
                     st.error(f"Failed to register: {e}")
-    # Reset password
+    # Password reset
     with tab3:
         email = st.text_input("Enter your email address (for reset)", key="reset_email")
         new_password = st.text_input("Enter your new password", type='password', key="reset_new")
@@ -129,7 +128,7 @@ def predictions_panel():
         st.info("No predictions for this bet.")
 
 def create_bet_panel(user):
-    st.header("Create a Bet (Admin Only)")
+    st.header("Create a Bet")
     title = st.text_input("Bet Title")
     description = st.text_area("Bet Description")
     answer_type = st.selectbox("Answer Type", ["number", "text"])
@@ -160,7 +159,7 @@ def place_prediction_panel(user):
             st.error(str(e))
 
 def close_bet_panel(user):
-    st.header("Close Bet (Admin Only)")
+    st.header("Close Bet")
     open_bets = get_bet_overview("open")
     bet_titles = {f"ID {b['bet_id']}: {b['title']}": b['bet_id'] for b in open_bets}
     if not bet_titles:
@@ -176,7 +175,7 @@ def close_bet_panel(user):
             st.error(str(e))
 
 def resolve_bet_panel(user):
-    st.header("Resolve Bet (Admin Only)")
+    st.header("Resolve Bet")
     closed_bets = get_bet_overview("closed")
     bet_titles = {f"ID {b['bet_id']}: {b['title']}": b['bet_id'] for b in closed_bets}
     if not bet_titles:
@@ -270,7 +269,7 @@ def main_panel():
         st.session_state.user = None
         st.session_state.page = "home"
         st.success("Logged out. Please log in/register again.")
-        st.experimental_rerun()
+        st.rerun()
 
 def run_app():
     if st.session_state.user is None:
