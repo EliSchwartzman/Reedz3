@@ -7,6 +7,7 @@ from scoring import distribute_reedz_on_resolution
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import re
 
 load_dotenv()
 ADMIN_CODE = os.getenv("ADMIN_CODE")
@@ -42,28 +43,29 @@ def auth_panel():
         admin_code = ""
         if role == "Admin":
             admin_code = st.text_input("Admin Verification Code", type="password", key="reg_code")
-        if st.button("Register"):
-            # ENFORCE NOT NULL/NON-EMPTY FIELDS:
-            if not username.strip() or not password or not email.strip():
-                st.error("Username, password, and email are required and cannot be blank.")
-            elif role == "Admin" and admin_code != ADMIN_CODE:
-                st.error("Incorrect admin verification code.")
-            elif role not in ["Admin", "Member"]:
-                st.error("Role must be Admin or Member.")
-            else:
-                hashed = hash_password(password)
-                u = User(user_id=None, username=username.strip(), password=hashed, email=email.strip(), reedz_balance=0, role=role, created_at=datetime.now())
-                try:
-                    supabase_db.create_user(u)
-                    st.success("Registration successful. Please login.")
-                except Exception as e:
-                    msg = str(e)
-                    if "unique" in msg.lower() or "already exists" in msg.lower():
-                        st.error("Username or email already exists. Try again with different values.")
-                    elif "null" in msg.lower() or "not-null" in msg.lower():
-                        st.error("Fields cannot be null.")
-                    else:
-                        st.error(f"Failed to register: {e}")
+            if st.button("Register"):
+                if not username.strip() or not password or not email.strip():
+                    st.error("Username, password, and email are required and cannot be blank.")
+                elif not re.match(r'^[A-Za-z0-9]+$', username):
+                    st.error("Username must contain only letters and numbers—no spaces or special characters allowed.")
+                elif role == "Admin" and admin_code != ADMIN_CODE:
+                    st.error("Incorrect admin verification code.")
+                elif role not in ["Admin", "Member"]:
+                    st.error("Role must be Admin or Member.")
+                else:
+                    hashed = hash_password(password)
+                    u = User(user_id=None, username=username.strip(), password=hashed, email=email.strip(), reedz_balance=0, role=role, created_at=datetime.now())
+                    try:
+                        supabase_db.create_user(u)
+                        st.success("Registration successful. Please login.")
+                    except Exception as e:
+                        msg = str(e)
+                        if "unique" in msg.lower() or "already exists" in msg.lower():
+                            st.error("Username or email already exists. Try again with different values.")
+                        elif "null" in msg.lower() or "not-null" in msg.lower():
+                            st.error("Fields cannot be null.")
+                        else:
+                            st.error(f"Failed to register: {e}")
     # Password reset
     with tab3:
         email = st.text_input("Enter your email address (for reset)", key="reset_email")
@@ -205,7 +207,18 @@ def user_management_panel():
     sub_menu = st.radio("Choose action", ["List users", "Promote/Demote", "Change Reedz", "Delete user"])
     if sub_menu == "List users":
         users = supabase_db.list_all_users()
-        st.table(users)
+        # Include email column here!
+        user_rows = [
+            {
+                "UserID": u["user_id"], 
+                "Username": u["username"], 
+                "Email": u.get("email",""), 
+                "Role": u["role"], 
+                "Reedz": u["reedz_balance"]
+            }
+            for u in users
+        ]
+        st.table(user_rows)
     elif sub_menu == "Promote/Demote":
         users = supabase_db.list_all_users()
         user_map = {f"{u['username']} (ID {u['user_id']}) - {u['role']}": u['user_id'] for u in users}
