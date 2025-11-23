@@ -194,6 +194,3 @@ def get_predictions_for_bet(bet_id):
 def get_user_predictions(user_id):
     res = supabase.table("predictions").select("*").eq("user_id", user_id).execute()
     return res.data
-
-# Add further helper functions as needed based on app features
-
