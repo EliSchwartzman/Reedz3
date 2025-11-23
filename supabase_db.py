@@ -51,7 +51,7 @@ def create_user(user: User):
         "email": user.email,
         "reedz_balance": user.reedz_balance,
         "role": user.role,
-        "created_at": user.created_at
+        "created_at": user.created_at.isoformat() if user.created_at else None
     }).execute()
     return res
 
