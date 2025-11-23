@@ -54,7 +54,8 @@ def auth_panel():
                     st.error("Role must be Admin or Member.")
                 else:
                     hashed = hash_password(password)
-                    u = User(user_id=None, username=username.strip(), password=hashed, email=email.strip(), reedz_balance=0, role=role, created_at=datetime.now())
+                    u = User(user_id=None, username=username.strip(), password=hashed, email=email.strip(),
+                            reedz_balance=0, role=role, created_at=datetime.now())
                     try:
                         supabase_db.create_user(u)
                         st.success("Registration successful. Please login.")
