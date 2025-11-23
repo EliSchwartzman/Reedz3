@@ -5,7 +5,7 @@ from supabase import create_client, Client
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")  # Ensure this matches your .env
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise Exception("SUPABASE_URL and SUPABASE_KEY must be set in your .env file.")
@@ -51,7 +51,7 @@ def create_user(user: User):
         "email": user.email,
         "reedz_balance": user.reedz_balance,
         "role": user.role,
-        "created_at": user.created_at.isoformat() if user.created_at else None
+        "created_at": user.created_at.isoformat() if isinstance(user.created_at, datetime) else user.created_at
     }).execute()
     return res
 
@@ -66,7 +66,7 @@ def get_user_by_username(username):
         u = data[0]
         return User(
             user_id=u["user_id"], username=u["username"], password=u["password"],
-            email=u.get("email",""), reedz_balance=u["reedz_balance"],
+            email=u.get("email", ""), reedz_balance=u["reedz_balance"],
             role=u["role"], created_at=u["created_at"]
         )
     return None
@@ -129,10 +129,10 @@ def create_bet(user, title, description, answer_type, close_at):
         "title": title,
         "description": description,
         "answer_type": answer_type,
-        "close_at": close_at,
+        "close_at": close_at.isoformat() if isinstance(close_at, datetime) else close_at,
         "creator_id": user.user_id,
         "state": "open",
-        "created_at": datetime.now()
+        "created_at": datetime.now().isoformat()
     }).execute()
     return res
 
@@ -145,7 +145,7 @@ def get_bet(bet_id):
             bet_id=b["bet_id"], title=b["title"], description=b["description"],
             answer_type=b["answer_type"], close_at=b["close_at"],
             correct_answer=b.get("correct_answer"),
-            state=b.get("state","open")
+            state=b.get("state", "open")
         )
     return None
 
@@ -177,7 +177,7 @@ def place_prediction(user, bet_id, prediction):
         "user_id": user.user_id,
         "bet_id": bet_id,
         "prediction": prediction,
-        "created_at": datetime.now()
+        "created_at": datetime.now().isoformat()
     }).execute()
     return res
 
