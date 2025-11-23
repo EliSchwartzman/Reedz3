@@ -5,7 +5,11 @@ from supabase import create_client, Client
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")  # Ensure this matches your .env
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise Exception("SUPABASE_URL and SUPABASE_KEY must be set in your .env file.")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # User model
@@ -158,14 +162,12 @@ def close_bet(user, bet_id):
     return res
 
 def resolve_bet(user, bet_id, correct_answer):
-    # Mark as resolved and set correct answer
     res = supabase.table("bets").update({
         "state": "resolved", "correct_answer": correct_answer
     }).eq("bet_id", bet_id).execute()
     return res
 
 def mark_bet_distributed(bet_id):
-    # Optional: set a distributed flag after scoring
     res = supabase.table("bets").update({"distributed": True}).eq("bet_id", bet_id).execute()
     return res
 
@@ -182,7 +184,6 @@ def place_prediction(user, bet_id, prediction):
 def get_predictions_for_bet(bet_id):
     res = supabase.table("predictions").select("prediction_id", "user_id", "bet_id", "prediction", "created_at").eq("bet_id", bet_id).execute()
     data = res.data
-    # Return list of Prediction objects
     preds = []
     for p in data:
         preds.append(Prediction(
