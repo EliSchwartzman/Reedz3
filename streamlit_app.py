@@ -43,18 +43,27 @@ def auth_panel():
         if role == "Admin":
             admin_code = st.text_input("Admin Verification Code", type="password", key="reg_code")
         if st.button("Register"):
-            if role == "Admin" and admin_code != ADMIN_CODE:
+            # ENFORCE NOT NULL/NON-EMPTY FIELDS:
+            if not username.strip() or not password or not email.strip():
+                st.error("Username, password, and email are required and cannot be blank.")
+            elif role == "Admin" and admin_code != ADMIN_CODE:
                 st.error("Incorrect admin verification code.")
             elif role not in ["Admin", "Member"]:
                 st.error("Role must be Admin or Member.")
             else:
                 hashed = hash_password(password)
-                u = User(user_id=None, username=username, password=hashed, email=email, reedz_balance=0, role=role, created_at=datetime.now())
+                u = User(user_id=None, username=username.strip(), password=hashed, email=email.strip(), reedz_balance=0, role=role, created_at=datetime.now())
                 try:
                     supabase_db.create_user(u)
                     st.success("Registration successful. Please login.")
                 except Exception as e:
-                    st.error(f"Failed to register: {e}")
+                    msg = str(e)
+                    if "unique" in msg.lower() or "already exists" in msg.lower():
+                        st.error("Username or email already exists. Try again with different values.")
+                    elif "null" in msg.lower() or "not-null" in msg.lower():
+                        st.error("Fields cannot be null.")
+                    else:
+                        st.error(f"Failed to register: {e}")
     # Password reset
     with tab3:
         email = st.text_input("Enter your email address (for reset)", key="reset_email")
