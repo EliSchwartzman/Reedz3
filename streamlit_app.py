@@ -1,13 +1,12 @@
 import streamlit as st
+import re
 from models import User
 from auth import hash_password, authenticate, is_admin
 import supabase_db
 from betting import create_bet, close_bet, resolve_bet, place_prediction, get_bet_overview
-from scoring import distribute_reedz_on_resolution
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
-import re
 
 load_dotenv()
 ADMIN_CODE = os.getenv("ADMIN_CODE")
@@ -43,30 +42,39 @@ def auth_panel():
         admin_code = ""
         if role == "Admin":
             admin_code = st.text_input("Admin Verification Code", type="password", key="reg_code")
-            if st.button("Register"):
-                if not username.strip() or not password or not email.strip():
-                    st.error("Username, password, and email are required and cannot be blank.")
-                elif not re.match(r'^[A-Za-z0-9]+$', username):
-                    st.error("Username must contain only letters and numbers—no spaces or special characters allowed.")
-                elif role == "Admin" and admin_code != ADMIN_CODE:
-                    st.error("Incorrect admin verification code.")
-                elif role not in ["Admin", "Member"]:
-                    st.error("Role must be Admin or Member.")
-                else:
-                    hashed = hash_password(password)
-                    u = User(user_id=None, username=username.strip(), password=hashed, email=email.strip(),
-                            reedz_balance=0, role=role, created_at=datetime.now())
-                    try:
-                        supabase_db.create_user(u)
-                        st.success("Registration successful. Please login.")
-                    except Exception as e:
-                        msg = str(e)
-                        if "unique" in msg.lower() or "already exists" in msg.lower():
-                            st.error("Username or email already exists. Try again with different values.")
-                        elif "null" in msg.lower() or "not-null" in msg.lower():
-                            st.error("Fields cannot be null.")
-                        else:
-                            st.error(f"Failed to register: {e}")
+
+        if st.button("Register"):
+            if not username.strip() or not password or not email.strip():
+                st.error("Username, password, and email are required and cannot be blank.")
+            elif not re.match(r'^[A-Za-z0-9]+$', username):
+                st.error("Username must contain only letters and numbers—no spaces or special characters allowed.")
+            elif role == "Admin" and admin_code != ADMIN_CODE:
+                st.error("Incorrect admin verification code.")
+            elif role not in ["Admin", "Member"]:
+                st.error("Role must be Admin or Member.")
+            else:
+                hashed = hash_password(password)
+                u = User(
+                    user_id=None,
+                    username=username.strip(),
+                    password=hashed,
+                    email=email.strip(),
+                    reedz_balance=0,
+                    role=role,
+                    created_at=datetime.now()
+                )
+                try:
+                    supabase_db.create_user(u)
+                    st.success("Registration successful. Please login.")
+                except Exception as e:
+                    msg = str(e)
+                    if "unique" in msg.lower() or "already exists" in msg.lower():
+                        st.error("Username or email already exists. Try again with different values.")
+                    elif "null" in msg.lower() or "not-null" in msg.lower() or "empty" in msg.lower():
+                        st.error("All fields must be non-null and non-empty.")
+                    else:
+                        st.error(f"Failed to register: {e}")
+
     # Password reset
     with tab3:
         email = st.text_input("Enter your email address (for reset)", key="reset_email")
@@ -208,13 +216,12 @@ def user_management_panel():
     sub_menu = st.radio("Choose action", ["List users", "Promote/Demote", "Change Reedz", "Delete user"])
     if sub_menu == "List users":
         users = supabase_db.list_all_users()
-        # Include email column here!
         user_rows = [
             {
-                "UserID": u["user_id"], 
-                "Username": u["username"], 
-                "Email": u.get("email",""), 
-                "Role": u["role"], 
+                "UserID": u["user_id"],
+                "Username": u["username"],
+                "Email": u.get("email", ""),
+                "Role": u["role"],
                 "Reedz": u["reedz_balance"]
             }
             for u in users
