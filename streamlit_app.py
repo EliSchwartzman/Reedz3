@@ -270,15 +270,33 @@ def user_management_panel():
             except Exception as e:
                 st.error(str(e))
 
+def profile_panel(user):
+    st.header("My Profile")
+    # Always fetch up-to-date info
+    user_db = supabase_db.get_user_by_id(user.user_id)
+    if user_db:
+        st.write(f"**Username:** {user_db.username}")
+        st.write(f"**Email:** {user_db.email}")
+        st.write(f"**Reedz Balance:** {user_db.reedz_balance}")
+        show_password = st.checkbox("Show Password")
+        if show_password:
+            st.write(f"**Password (hashed):** `{user_db.password}`")
+        else:
+            st.write(f"**Password:** {'*' * 12}  (click 'Show Password' to reveal)")
+    else:
+        st.error("Could not retrieve user profile.")
+
 def main_panel():
     user = st.session_state.user
     st.sidebar.write(f"Logged in as: {user.username}, Role: {user.role}, Reedz: {user.reedz_balance}")
     st.sidebar.write(" ")
-    pages = ["Leaderboard", "All Bets", "Place Prediction", "View Predictions for a Bet"]
+    pages = ["My Profile", "Leaderboard", "All Bets", "Place Prediction", "View Predictions for a Bet"]
     if is_admin(user):
         pages = ["Create Bet", "Close Bet", "Resolve Bet", "User Management"] + pages
     page = st.sidebar.radio("Navigation", pages)
-    if is_admin(user) and page == "Create Bet":
+    if page == "My Profile":
+        profile_panel(user)
+    elif is_admin(user) and page == "Create Bet":
         create_bet_panel(user)
     elif is_admin(user) and page == "Close Bet":
         close_bet_panel(user)
