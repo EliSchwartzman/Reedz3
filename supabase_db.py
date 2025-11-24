@@ -194,7 +194,9 @@ def place_prediction(user, bet_id, prediction):
     return res
 
 def get_predictions_for_bet(bet_id):
-    res = supabase.table("predictions").select("prediction_id", "user_id", "bet_id", "prediction", "created_at").eq("bet_id", bet_id).execute()
+    res = supabase.table("predictions").select(
+        "prediction_id", "user_id", "bet_id", "prediction", "created_at"
+    ).eq("bet_id", bet_id).execute()
     data = res.data
     preds = []
     for p in data:
