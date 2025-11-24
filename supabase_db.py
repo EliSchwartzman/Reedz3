@@ -185,10 +185,6 @@ def resolve_bet(bet_id, correct_answer):
     }).eq("bet_id", bet_id).execute()
     return res
 
-def mark_bet_distributed(bet_id):
-    res = supabase.table("bets").update({"distributed": True}).eq("bet_id", bet_id).execute()
-    return res
-
 ## ----------- PREDICTION FUNCTIONS ----------- ##
 def create_prediction(prediction: Prediction):
     res = supabase.table("predictions").insert({
