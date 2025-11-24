@@ -184,14 +184,15 @@ def mark_bet_distributed(bet_id):
     return res
 
 ## ----------- PREDICTION FUNCTIONS ----------- ##
-def place_prediction(user, bet_id, prediction):
+def create_prediction(prediction: Prediction):
     res = supabase.table("predictions").insert({
-        "user_id": user.user_id,
-        "bet_id": bet_id,
-        "prediction": prediction,
-        "created_at": datetime.now().isoformat()
+        "user_id": prediction.user_id,
+        "bet_id": prediction.bet_id,
+        "prediction": prediction.prediction,
+        "created_at": prediction.created_at if isinstance(prediction.created_at, str) else prediction.created_at.isoformat()
     }).execute()
     return res
+
 
 def get_predictions_for_bet(bet_id):
     res = supabase.table("predictions").select(
