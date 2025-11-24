@@ -46,5 +46,3 @@ def distribute_reedz_on_resolution(bet_id):
             supabase_db.add_reedz(pred.user_id, num + 5)
         for pred in nonmatches:
             supabase_db.add_reedz(pred.user_id, 0)
-
-    supabase_db.mark_bet_distributed(bet_id)
