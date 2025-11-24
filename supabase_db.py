@@ -207,3 +207,12 @@ def get_predictions_for_bet(bet_id):
 def get_user_predictions(user_id):
     res = supabase.table("predictions").select("*").eq("user_id", user_id).execute()
     return res.data
+
+def has_prediction(user_id, bet_id):
+    res = supabase.table("predictions")\
+        .select("prediction_id")\
+        .eq("user_id", user_id)\
+        .eq("bet_id", bet_id)\
+        .limit(1)\
+        .execute()
+    return bool(res.data)
