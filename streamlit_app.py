@@ -133,8 +133,14 @@ def bets_panel():
 def predictions_panel():
     st.header("View Predictions for a Bet")
     all_bets = get_bet_overview("")
+    if not all_bets:
+        st.info("No bets available.")
+        return
     bet_titles = {f"ID {b['bet_id']}: {b['title']}": b['bet_id'] for b in all_bets}
     opt = st.selectbox("Select a bet", list(bet_titles.keys()))
+    if not bet_titles or not opt:
+        st.info("No bet selected.")
+        return
     bet_id = bet_titles[opt]
     predictions = supabase_db.get_predictions_for_bet(bet_id)
     if predictions:
