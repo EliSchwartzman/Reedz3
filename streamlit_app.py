@@ -110,14 +110,13 @@ def auth_panel():
                     st.session_state["sent_reset_email"] = True
                     st.session_state["reset_email_val"] = email
                     st.session_state["reset_code_sent_to"] = email
-                    st.success("A reset code has been sent to your email. Please check your inbox.")
                 else:
                     st.session_state["sent_reset_email"] = False
                     st.error(f"Failed to send reset email: {error_msg}")
 
         # Show reset code/password fields if code sent
         if st.session_state["sent_reset_email"]:
-            st.info(f"Reset code sent to: {st.session_state['reset_code_sent_to']}")
+            st.info(f"Reset code sent to: {st.session_state['reset_code_sent_to']}. Please check your email.")
             code = st.text_input("Enter reset code from email", max_chars=6)
             new_password = st.text_input("Enter your new password", type="password", key="reset_new")
             confirm_password = st.text_input("Confirm new password", type="password", key="reset_confirm")
