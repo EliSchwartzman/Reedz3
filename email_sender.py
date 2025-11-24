@@ -8,7 +8,7 @@ def send_password_reset_email(email, code):
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", "465"))
 
-    to_addr = email
+    to_addr = email     # Any valid email works here
     subject = "Your Reedz Password Reset Code"
     message = f"Your Reedz password reset code is: {code}\n\nThis code will expire in 15 minutes."
 
