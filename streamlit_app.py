@@ -124,7 +124,6 @@ def auth_panel():
                         st.error(f"Failed to send reset email: {error_msg}")
 
         if st.session_state["sent_reset_email"]:
-            st.info(f"Reset code sent to: {st.session_state['reset_code_sent_to']}")
             with st.form("change_pw_form", clear_on_submit=False):
                 code = st.text_input("Enter reset code from email", max_chars=6)
                 new_password = st.text_input("Enter your new password", type="password", key="reset_new")
