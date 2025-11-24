@@ -27,7 +27,8 @@ def set_reset_code_for_email(email):
     code = generate_reset_code()
     expiry = datetime.now() + timedelta(minutes=15)
     supabase_db.set_user_reset_code(email, code, expiry)
-    send_password_reset_email(email, code)
+    success, error_msg = send_password_reset_email(email, code)
+    return success, error_msg
 
 def auth_panel():
     st.header("Reedz: Login / Register")
@@ -87,7 +88,7 @@ def auth_panel():
                     else:
                         st.error(f"Failed to register: {e}")
 
-    # Password reset (new workflow)
+    # Password reset (with direct error reporting)
     with tab3:
         st.session_state.setdefault("sent_reset_email", False)
         st.session_state.setdefault("reset_email_val", "")
@@ -100,11 +101,14 @@ def auth_panel():
                 if not found_user:
                     st.error("No user found for this email.")
                 else:
-                    set_reset_code_for_email(email)
-                    st.session_state["sent_reset_email"] = True
-                    st.session_state["reset_email_val"] = email
-                    st.session_state["reset_code_sent_to"] = email
-                    st.success("A reset code has been sent to your email. Please check your inbox.")
+                    success, error_msg = set_reset_code_for_email(email)
+                    if success:
+                        st.session_state["sent_reset_email"] = True
+                        st.session_state["reset_email_val"] = email
+                        st.session_state["reset_code_sent_to"] = email
+                        st.success("A reset code has been sent to your email. Please check your inbox.")
+                    else:
+                        st.error(f"Failed to send reset email: {error_msg}")
         else:
             st.info(f"Reset email sent to: {st.session_state['reset_code_sent_to']}")
             code = st.text_input("Enter reset code from email", max_chars=6)

@@ -3,10 +3,10 @@ from email.mime.text import MIMEText
 import os
 
 def send_password_reset_email(email, code):
-    from_addr = os.getenv("SMTP_USER")    # Set in your .env
-    password = os.getenv("SMTP_PASS")     # Set in your .env
-    smtp_host = os.getenv("SMTP_HOST")    # e.g., smtp.gmail.com
-    smtp_port = int(os.getenv("SMTP_PORT", "465"))  # 465 for SSL
+    from_addr = os.getenv("SMTP_USER")
+    password = os.getenv("SMTP_PASS")
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "465"))
 
     to_addr = email
     subject = "Your Reedz Password Reset Code"
@@ -16,10 +16,11 @@ def send_password_reset_email(email, code):
     msg["Subject"] = subject
     msg["From"] = from_addr
     msg["To"] = to_addr
-    
+
     try:
         with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
             server.login(from_addr, password)
             server.sendmail(from_addr, [to_addr], msg.as_string())
+        return True, None
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        return False, str(e)
