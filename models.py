@@ -2,34 +2,34 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-@dataclass
+# User model
 class User:
-    user_id: Optional[int]
-    username: str
-    password: str
-    email: str
-    reedz_balance: int
-    role: str
-    created_at: datetime
+    def __init__(self, user_id, username, password, email, reedz_balance, role, created_at):
+        self.user_id = user_id
+        self.username = username
+        self.password = password
+        self.email = email
+        self.reedz_balance = reedz_balance
+        self.role = role
+        self.created_at = created_at
 
-@dataclass
-class Bet:
-    bet_id: Optional[int]
-    created_by_user_id: int
-    title: str
-    description: str
-    answer_type: str
-    is_open: bool
-    is_resolved: bool
-    created_at: datetime
-    close_at: datetime
-    resolved_at: Optional[datetime]
-    correct_answer: Optional[str]
-
-@dataclass
+# Prediction model
 class Prediction:
-    prediction_id: Optional[int]
-    user_id: int
-    bet_id: int
-    prediction: str
-    created_at: datetime
+    def __init__(self, prediction_id, user_id, bet_id, prediction, created_at):
+        self.prediction_id = prediction_id
+        self.user_id = user_id
+        self.bet_id = bet_id
+        self.prediction = prediction
+        self.created_at = created_at
+
+# Bet model
+class Bet:
+    def __init__(self, bet_id, title, description, answer_type, close_at, correct_answer=None, is_open=True, is_resolved=False):
+        self.bet_id = bet_id
+        self.title = title
+        self.description = description
+        self.answer_type = answer_type
+        self.close_at = close_at
+        self.correct_answer = correct_answer
+        self.is_open = is_open
+        self.is_resolved = is_resolved
