@@ -29,3 +29,6 @@ class Bet:
         self.correct_answer = correct_answer
         self.is_open = is_open
         self.is_resolved = is_resolved
+        self.created_at = None
+        self.created_by_user_id = None
+        
