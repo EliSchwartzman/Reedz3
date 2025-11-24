@@ -356,11 +356,6 @@ def profile_panel(user):
         st.write(f"**Username:** {user_db.username}")
         st.write(f"**Email:** {user_db.email}")
         st.write(f"**Reedz Balance:** {user_db.reedz_balance}")
-        show_password = st.checkbox("Show Password")
-        if show_password:
-            st.write(f"**Password (hashed):** `{user_db.password}`")
-        else:
-            st.write(f"**Password:** {'*' * 12}  (click 'Show Password' to reveal)")
     else:
         st.error("Could not retrieve user profile.")
 
