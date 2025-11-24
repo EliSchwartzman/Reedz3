@@ -88,12 +88,11 @@ def auth_panel():
                     else:
                         st.error(f"Failed to register: {e}")
 
-    # Password reset (with direct error reporting)
+    # Password reset (with code input and change password)
     with tab3:
         st.session_state.setdefault("sent_reset_email", False)
         st.session_state.setdefault("reset_email_val", "")
         st.session_state.setdefault("reset_code_sent_to", "")
-        
         if not st.session_state["sent_reset_email"]:
             email = st.text_input("Enter your email address (for reset)", key="reset_email")
             if st.button("Send Reset Code"):
@@ -110,28 +109,34 @@ def auth_panel():
                     else:
                         st.error(f"Failed to send reset email: {error_msg}")
         else:
-            st.info(f"Reset email sent to: {st.session_state['reset_code_sent_to']}")
+            st.info(f"Reset code sent to: {st.session_state['reset_code_sent_to']}")
             code = st.text_input("Enter reset code from email", max_chars=6)
             new_password = st.text_input("Enter your new password", type="password", key="reset_new")
             confirm_password = st.text_input("Confirm new password", type="password", key="reset_confirm")
-            if st.button("Reset Password"):
-                if not new_password or not confirm_password:
-                    st.error("Please enter your new password twice.")
-                elif new_password != confirm_password:
-                    st.error("Passwords do not match.")
-                elif not supabase_db.check_reset_code(st.session_state["reset_email_val"], code):
-                    st.error("Invalid or expired reset code.")
-                else:
-                    hashed = hash_password(new_password)
-                    ok = supabase_db.update_user_password_by_email(st.session_state["reset_email_val"], hashed)
-                    supabase_db.clear_reset_code(st.session_state["reset_email_val"])
-                    if ok:
-                        st.success("Password reset. You may login.")
-                        st.session_state["sent_reset_email"] = False
-                        st.session_state["reset_email_val"] = ""
-                        st.session_state["reset_code_sent_to"] = ""
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Change My Password"):
+                    if not new_password or not confirm_password:
+                        st.error("Please enter your new password twice.")
+                    elif new_password != confirm_password:
+                        st.error("Passwords do not match.")
+                    elif not supabase_db.check_reset_code(st.session_state["reset_email_val"], code):
+                        st.error("Invalid or expired reset code.")
                     else:
-                        st.error("Password reset failed.")
+                        hashed = hash_password(new_password)
+                        ok = supabase_db.update_user_password_by_email(st.session_state["reset_email_val"], hashed)
+                        supabase_db.clear_reset_code(st.session_state["reset_email_val"])
+                        if ok:
+                            st.success("Password reset successful. You may now log in.")
+                            st.session_state["sent_reset_email"] = False
+                            st.session_state["reset_email_val"] = ""
+                            st.session_state["reset_code_sent_to"] = ""
+                        else:
+                            st.error("Password reset failed.")
+            with col2:
+                st.button("Cancel & Start Over", on_click=lambda: [
+                    st.session_state.update({"sent_reset_email": False, "reset_email_val": "", "reset_code_sent_to": ""})
+                ])
 
 def leaderboard_panel():
     st.header("Leaderboard")
