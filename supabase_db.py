@@ -150,11 +150,11 @@ def get_bet(bet_id):
     return None
 
 def get_bet_overview(state=""):
-    q = supabase.table("bets").select("bet_id", "title", "description", "answer_type", "correct_answer", "state")
-    if state == "":
-        res = q.execute()
-    else:
-        res = q.eq("state", state).execute()
+    # Deprecated: use get_bets_by_state, but keep for compatibility
+    return get_bets_by_state(state)
+
+def get_bets_by_state(state):
+    res = supabase.table("bets").select("bet_id", "title", "description", "answer_type", "correct_answer", "state").eq("state", state).execute()
     return res.data
 
 def close_bet(user, bet_id):
