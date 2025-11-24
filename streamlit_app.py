@@ -13,6 +13,8 @@ from email_sender import send_password_reset_email
 
 load_dotenv()
 ADMIN_CODE = os.getenv("ADMIN_CODE")
+
+# Minimal, professional page config
 st.set_page_config(page_title="Reedz Betting", layout="wide")
 
 if "user" not in st.session_state:
@@ -31,98 +33,111 @@ def set_reset_code_for_email(email):
     return success, error_msg
 
 def auth_panel():
-    st.header("Reedz: Login / Register")
+    st.title("Reedz Betting")
+    st.divider()
     tab1, tab2, tab3 = st.tabs(["Login", "Register", "Reset Password"])
+
     # Login
     with tab1:
-        username = st.text_input("Username", key="login_username")
-        password = st.text_input("Password", type='password', key="login_password")
-        if st.button("Login"):
-            user = authenticate(username, password)
-            if user:
-                st.session_state.user = user
-                st.success(f"Logged in as {user.username}, role {user.role}")
-                st.session_state.page = "main"
-                st.rerun()
-            else:
-                st.error("Login failed")
+        st.subheader("Login")
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type='password')
+            submitted = st.form_submit_button("Login", use_container_width=True)
+            if submitted:
+                user = authenticate(username, password)
+                if user:
+                    st.session_state.user = user
+                    st.success(f"Logged in as {user.username} ({user.role})")
+                    st.session_state.page = "main"
+                    st.rerun()
+                else:
+                    st.error("Login failed")
+
     # Register
     with tab2:
-        username = st.text_input("New Username", key="reg_username")
-        password = st.text_input("New Password", type='password', key="reg_password")
-        email = st.text_input("Email", key="reg_email")
-        role = st.selectbox("Role", ["Member", "Admin"], key="reg_role")
-        admin_code = ""
-        if role == "Admin":
-            admin_code = st.text_input("Admin Verification Code", type="password", key="reg_code")
+        st.subheader("Register")
+        with st.form("register_form", clear_on_submit=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                username = st.text_input("New Username")
+                password = st.text_input("New Password", type="password")
+            with col2:
+                email = st.text_input("Email")
+                role = st.selectbox("Role", ["Member", "Admin"])
+            admin_code = ""
+            if role == "Admin":
+                admin_code = st.text_input("Admin Verification Code", type="password")
+            reg_button = st.form_submit_button("Register", use_container_width=True)
+            if reg_button:
+                if not username.strip() or not password or not email.strip():
+                    st.error("All fields are required.")
+                elif not re.match(r'^[A-Za-z0-9]+$', username):
+                    st.error("Username must be letters/numbers only with no spaces.")
+                elif role == "Admin" and admin_code != ADMIN_CODE:
+                    st.error("Incorrect admin verification code.")
+                elif role not in ["Admin", "Member"]:
+                    st.error("Role must be Admin or Member.")
+                else:
+                    hashed = hash_password(password)
+                    u = User(
+                        user_id=None,
+                        username=username.strip(),
+                        password=hashed,
+                        email=email.strip(),
+                        reedz_balance=0,
+                        role=role,
+                        created_at=datetime.now()
+                    )
+                    try:
+                        supabase_db.create_user(u)
+                        st.success("Registration successful! Please log in.")
+                    except Exception as e:
+                        msg = str(e)
+                        if "unique" in msg.lower() or "already exists" in msg.lower():
+                            st.error("Username or email already exists.")
+                        elif "null" in msg.lower() or "not-null" in msg.lower() or "empty" in msg.lower():
+                            st.error("All fields must be non-null/non-empty.")
+                        else:
+                            st.error(f"Failed to register: {e}")
 
-        if st.button("Register"):
-            if not username.strip() or not password or not email.strip():
-                st.error("Username, password, and email are required and cannot be blank.")
-            elif not re.match(r'^[A-Za-z0-9]+$', username):
-                st.error("Username must contain only letters and numbers—no spaces or special characters allowed.")
-            elif role == "Admin" and admin_code != ADMIN_CODE:
-                st.error("Incorrect admin verification code.")
-            elif role not in ["Admin", "Member"]:
-                st.error("Role must be Admin or Member.")
-            else:
-                hashed = hash_password(password)
-                u = User(
-                    user_id=None,
-                    username=username.strip(),
-                    password=hashed,
-                    email=email.strip(),
-                    reedz_balance=0,
-                    role=role,
-                    created_at=datetime.now()
-                )
-                try:
-                    supabase_db.create_user(u)
-                    st.success("Registration successful. Please login.")
-                except Exception as e:
-                    msg = str(e)
-                    if "unique" in msg.lower() or "already exists" in msg.lower():
-                        st.error("Username or email already exists. Try again with different values.")
-                    elif "null" in msg.lower() or "not-null" in msg.lower() or "empty" in msg.lower():
-                        st.error("All fields must be non-null and non-empty.")
-                    else:
-                        st.error(f"Failed to register: {e}")
-
-    # Password reset (dynamic fields show after sending code)
+    # Password reset (seamless flow, no emoji)
     with tab3:
-        # Initialize state on first load
+        st.subheader("Password Reset")
         if "sent_reset_email" not in st.session_state:
             st.session_state["sent_reset_email"] = False
             st.session_state["reset_email_val"] = ""
             st.session_state["reset_code_sent_to"] = ""
 
-        email = st.text_input("Enter your email address (for reset)", key="reset_email")
-        send_code_clicked = st.button("Send Reset Code")
-
-        if send_code_clicked:
-            found_user = supabase_db.get_user_by_email(email)
-            if not found_user:
-                st.error("No user found for this email.")
-                st.session_state["sent_reset_email"] = False
-            else:
-                success, error_msg = set_reset_code_for_email(email)
-                if success:
-                    st.session_state["sent_reset_email"] = True
-                    st.session_state["reset_email_val"] = email
-                    st.session_state["reset_code_sent_to"] = email
-                else:
+        with st.form("reset_form", clear_on_submit=False):
+            email = st.text_input("Enter your email address", value=st.session_state.get("reset_email_val", ""))
+            send_code_clicked = st.form_submit_button("Send Reset Code")
+            if send_code_clicked:
+                found_user = supabase_db.get_user_by_email(email)
+                if not found_user:
+                    st.error("No user found for this email.")
                     st.session_state["sent_reset_email"] = False
-                    st.error(f"Failed to send reset email: {error_msg}")
+                else:
+                    success, error_msg = set_reset_code_for_email(email)
+                    if success:
+                        st.session_state["sent_reset_email"] = True
+                        st.session_state["reset_email_val"] = email
+                        st.session_state["reset_code_sent_to"] = email
+                        st.success("A reset code has been sent to your email.")
+                    else:
+                        st.session_state["sent_reset_email"] = False
+                        st.error(f"Failed to send reset email: {error_msg}")
 
-        # Show reset code/password fields if code sent
         if st.session_state["sent_reset_email"]:
-            st.info(f"Reset code sent to: {st.session_state['reset_code_sent_to']}. Please check your email.")
-            code = st.text_input("Enter reset code from email", max_chars=6)
-            new_password = st.text_input("Enter your new password", type="password", key="reset_new")
-            confirm_password = st.text_input("Confirm new password", type="password", key="reset_confirm")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Change My Password"):
+            st.info(f"Reset code sent to: {st.session_state['reset_code_sent_to']}")
+            with st.form("change_pw_form", clear_on_submit=False):
+                code = st.text_input("Enter reset code from email", max_chars=6)
+                new_password = st.text_input("Enter your new password", type="password", key="reset_new")
+                confirm_password = st.text_input("Confirm new password", type="password", key="reset_confirm")
+                col1, col2 = st.columns(2)
+                change_pw = col1.form_submit_button("Change My Password")
+                cancel = col2.form_submit_button("Cancel & Start Over")
+                if change_pw:
                     if not new_password or not confirm_password:
                         st.error("Please enter your new password twice.")
                     elif new_password != confirm_password:
@@ -140,86 +155,85 @@ def auth_panel():
                             st.session_state["reset_code_sent_to"] = ""
                         else:
                             st.error("Password reset failed.")
-            with col2:
-                st.button("Cancel & Start Over", on_click=lambda: [
-                    st.session_state.update({"sent_reset_email": False, "reset_email_val": "", "reset_code_sent_to": ""})
-                ])
+                if cancel:
+                    st.session_state["sent_reset_email"] = False
+                    st.session_state["reset_email_val"] = ""
+                    st.session_state["reset_code_sent_to"] = ""
 
 def leaderboard_panel():
-    st.header("Leaderboard")
+    st.subheader("Leaderboard")
     leaderboard = supabase_db.get_leaderboard()
     if leaderboard:
-        st.table([
+        st.dataframe([
             {"Rank": idx + 1, "Username": entry["username"], "Reedz": entry["reedz_balance"]}
             for idx, entry in enumerate(leaderboard)
-        ])
+        ], use_container_width=True)
     else:
         st.info("No users found.")
 
 def bets_panel():
-    st.header("All Bets Overview")
+    st.subheader("All Bets Overview")
     open_bets = get_bet_overview("open")
     closed_bets = get_bet_overview("closed")
     resolved_bets = get_bet_overview("resolved")
     with st.expander("Open Bets", expanded=True):
         if open_bets:
             for bet in open_bets:
-                st.write(f"Bet ID: {bet['bet_id']}, Title: {bet['title']}")
+                st.write(f"Bet ID: {bet['bet_id']} — {bet['title']}")
         else:
             st.info("No open bets.")
     with st.expander("Closed Bets"):
         if closed_bets:
             for bet in closed_bets:
-                st.write(f"Bet ID: {bet['bet_id']}, Title: {bet['title']}")
+                st.write(f"Bet ID: {bet['bet_id']} — {bet['title']}")
         else:
             st.info("No closed bets.")
     with st.expander("Resolved Bets"):
         if resolved_bets:
             for bet in resolved_bets:
                 ans_str = f", Answer: {bet['correct_answer']}" if bet.get('correct_answer') else ""
-                st.write(f"Bet ID: {bet['bet_id']}, Title: {bet['title']}{ans_str}")
+                st.write(f"Bet ID: {bet['bet_id']} — {bet['title']}{ans_str}")
         else:
             st.info("No resolved bets.")
 
 def predictions_panel():
-    st.header("View Predictions for a Bet")
+    st.subheader("View Predictions for a Bet")
     all_bets = get_bet_overview("")
     if not all_bets:
         st.info("No bets available.")
         return
     bet_titles = {f"ID {b['bet_id']}: {b['title']}": b['bet_id'] for b in all_bets}
     opt = st.selectbox("Select a bet", list(bet_titles.keys()))
-    if not bet_titles or not opt:
+    if not opt:
         st.info("No bet selected.")
         return
     bet_id = bet_titles[opt]
     predictions = supabase_db.get_predictions_for_bet(bet_id)
     if predictions:
-        data = []
-        for pred in predictions:
-            pred_user = supabase_db.get_user_by_username(pred.user_id)
-            username = pred_user.username if pred_user else f"UserID {pred.user_id}"
-            data.append({"User": username, "Prediction": pred.prediction})
-        st.table(data)
+        st.dataframe(
+            [{"User": supabase_db.get_user_by_username(p.user_id).username if supabase_db.get_user_by_username(p.user_id) else p.user_id, "Prediction": p.prediction} for p in predictions],
+            use_container_width=True
+        )
     else:
         st.info("No predictions for this bet.")
 
 def create_bet_panel(user):
-    st.header("Create a Bet")
-    title = st.text_input("Bet Title")
-    description = st.text_area("Bet Description")
-    answer_type = st.selectbox("Answer Type", ["number", "text"])
-    close_days = st.number_input("Days until bet closes", min_value=1, max_value=30, value=1)
-    if st.button("Create Bet"):
-        close_at = datetime.now() + timedelta(days=close_days)
-        try:
-            create_bet(user, title, description, answer_type, close_at)
-            st.success("Bet created.")
-        except Exception as e:
-            st.error(f"Failed to create bet: {e}")
+    st.subheader("Create a Bet")
+    with st.expander("Create New Bet", expanded=True):
+        title = st.text_input("Bet Title")
+        description = st.text_area("Bet Description")
+        answer_type = st.selectbox("Answer Type", ["number", "text"])
+        close_days = st.number_input("Days until bet closes", min_value=1, max_value=30, value=1)
+        if st.button("Create Bet", use_container_width=True):
+            close_at = datetime.now() + timedelta(days=close_days)
+            try:
+                create_bet(user, title, description, answer_type, close_at)
+                st.success("Bet created.")
+            except Exception as e:
+                st.error(f"Failed to create bet: {e}")
 
 def place_prediction_panel(user):
-    st.header("Place Prediction")
+    st.subheader("Place Prediction")
     open_bets = get_bet_overview("open")
     bet_titles = {f"ID {b['bet_id']}: {b['title']}": b['bet_id'] for b in open_bets}
     if not bet_titles:
@@ -231,7 +245,7 @@ def place_prediction_panel(user):
         st.info("No bet selected.")
         return
     pred_val = st.text_input("Your Prediction (number or text)")
-    if st.button("Place Prediction"):
+    if st.button("Place Prediction", use_container_width=True):
         try:
             place_prediction(user, bet_id, pred_val)
             st.success("Prediction placed.")
@@ -239,7 +253,7 @@ def place_prediction_panel(user):
             st.error(str(e))
 
 def close_bet_panel(user):
-    st.header("Close Bet")
+    st.subheader("Close Bet")
     open_bets = get_bet_overview("open")
     bet_titles = {f"ID {b['bet_id']}: {b['title']}": b['bet_id'] for b in open_bets}
     if not bet_titles:
@@ -250,7 +264,7 @@ def close_bet_panel(user):
     if not bet_id:
         st.info("No bet selected.")
         return
-    if st.button("Close Bet"):
+    if st.button("Close Bet", use_container_width=True):
         try:
             close_bet(user, bet_id)
             st.success("Bet closed.")
@@ -258,7 +272,7 @@ def close_bet_panel(user):
             st.error(str(e))
 
 def resolve_bet_panel(user):
-    st.header("Resolve Bet")
+    st.subheader("Resolve Bet")
     closed_bets = get_bet_overview("closed")
     bet_titles = {f"ID {b['bet_id']}: {b['title']}": b['bet_id'] for b in closed_bets}
     if not bet_titles:
@@ -270,7 +284,7 @@ def resolve_bet_panel(user):
         st.info("No bet selected.")
         return
     answer = st.text_input("Correct Answer")
-    if st.button("Resolve Bet"):
+    if st.button("Resolve Bet", use_container_width=True):
         try:
             resolve_bet(user, bet_id, answer)
             st.success("Bet resolved and Reedz distributed.")
@@ -278,11 +292,11 @@ def resolve_bet_panel(user):
             st.error(str(e))
 
 def user_management_panel():
-    st.header("Admin: User Management")
+    st.subheader("Admin: User Management")
     sub_menu = st.radio("Choose action", ["List users", "Promote/Demote", "Change Reedz", "Delete user"])
     if sub_menu == "List users":
         users = supabase_db.list_all_users()
-        user_rows = [
+        st.dataframe([
             {
                 "UserID": u["user_id"],
                 "Username": u["username"],
@@ -291,8 +305,7 @@ def user_management_panel():
                 "Reedz": u["reedz_balance"]
             }
             for u in users
-        ]
-        st.table(user_rows)
+        ], use_container_width=True)
     elif sub_menu == "Promote/Demote":
         users = supabase_db.list_all_users()
         user_map = {f"{u['username']} (ID {u['user_id']}) - {u['role']}": u['user_id'] for u in users}
@@ -337,7 +350,7 @@ def user_management_panel():
                 st.error(str(e))
 
 def profile_panel(user):
-    st.header("My Profile")
+    st.subheader("My Profile")
     user_db = supabase_db.get_user_by_id(user.user_id)
     if user_db:
         st.write(f"**Username:** {user_db.username}")
@@ -353,11 +366,18 @@ def profile_panel(user):
 
 def main_panel():
     user = st.session_state.user
-    st.sidebar.write(f"Logged in as: {user.username}, Role: {user.role}, Reedz: {user.reedz_balance}")
-    st.sidebar.write(" ")
-    pages = ["My Profile", "Leaderboard", "All Bets", "Place Prediction", "View Predictions for a Bet"]
+    st.sidebar.title("Reedz Betting Menu")
+    st.sidebar.markdown(
+        f"**{user.username}** | {user.reedz_balance} Reedz | {user.role}"
+    )
+    st.sidebar.divider()
+    pages = [
+        "My Profile", "Leaderboard", "All Bets",
+        "Place Prediction", "View Predictions for a Bet"
+    ]
     if is_admin(user):
-        pages = ["Create Bet", "Close Bet", "Resolve Bet", "User Management"] + pages
+        admin_pages = ["Create Bet", "Close Bet", "Resolve Bet", "User Management"]
+        pages = admin_pages + pages
     page = st.sidebar.radio("Navigation", pages)
     if page == "My Profile":
         profile_panel(user)
