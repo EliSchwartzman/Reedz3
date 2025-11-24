@@ -122,16 +122,18 @@ def get_leaderboard():
     return res.data
 
 ## ----------- BET FUNCTIONS ----------- ##
-def create_bet(user, title, description, answer_type, close_at):
+def create_bet(bet: Bet):
     res = supabase.table("bets").insert({
-        "title": title,
-        "description": description,
-        "answer_type": answer_type,
-        "close_at": close_at.isoformat() if isinstance(close_at, datetime) else close_at,
-        "created_by_user_id": user.user_id,
-        "is_open": True,
-        "is_resolved": False,
-        "created_at": datetime.now().isoformat()
+        "created_by_user_id": bet.created_by_user_id,
+        "title": bet.title,
+        "description": bet.description,
+        "answer_type": bet.answer_type,
+        "is_open": bet.is_open,
+        "is_resolved": bet.is_resolved,
+        "created_at": bet.created_at.isoformat() if isinstance(bet.created_at, datetime) else bet.created_at,
+        "close_at": bet.close_at.isoformat() if isinstance(bet.close_at, datetime) else bet.close_at,
+        "resolved_at": bet.resolved_at.isoformat() if bet.resolved_at is not None and isinstance(bet.resolved_at, datetime) else bet.resolved_at,
+        "correct_answer": bet.correct_answer
     }).execute()
     return res
 

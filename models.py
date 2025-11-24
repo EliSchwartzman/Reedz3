@@ -1,4 +1,3 @@
-# User model
 class User:
     def __init__(self, user_id, username, password, email, reedz_balance, role, created_at):
         self.user_id = user_id
@@ -9,7 +8,6 @@ class User:
         self.role = role
         self.created_at = created_at
 
-# Prediction model
 class Prediction:
     def __init__(self, prediction_id, user_id, bet_id, prediction, created_at):
         self.prediction_id = prediction_id
@@ -18,7 +16,6 @@ class Prediction:
         self.prediction = prediction
         self.created_at = created_at
 
-# Bet model
 class Bet:
     def __init__(self, bet_id, created_by_user_id, title, description, answer_type,
                  is_open, is_resolved, created_at, close_at, resolved_at=None, correct_answer=None):
@@ -33,5 +30,3 @@ class Bet:
         self.close_at = close_at
         self.resolved_at = resolved_at
         self.correct_answer = correct_answer
-
-
