@@ -7,16 +7,13 @@ def send_password_reset_email(email, code):
     password = os.getenv("SMTP_PASS")
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", "465"))
-
-    to_addr = email     # Any valid email works here
+    to_addr = email  # Any valid email works here
     subject = "Your Reedz Password Reset Code"
     message = f"Your Reedz password reset code is: {code}\n\nThis code will expire in 15 minutes."
-
     msg = MIMEText(message)
     msg["Subject"] = subject
     msg["From"] = from_addr
     msg["To"] = to_addr
-
     try:
         with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
             server.login(from_addr, password)

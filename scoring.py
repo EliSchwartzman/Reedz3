@@ -15,6 +15,7 @@ def distribute_reedz_on_resolution(bet_id):
             [(abs(float(pred.prediction) - correct), pred) for pred in predictions],
             key=lambda x: x[0]
         )
+
         # Group by error (for ties)
         from collections import defaultdict
         error_groups = defaultdict(list)
