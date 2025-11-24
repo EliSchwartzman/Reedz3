@@ -34,14 +34,15 @@ class Prediction:
 
 # Bet model
 class Bet:
-    def __init__(self, bet_id, title, description, answer_type, close_at, correct_answer=None, state=None):
+    def __init__(self, bet_id, title, description, answer_type, close_at, correct_answer=None, is_open=True, is_resolved=False):
         self.bet_id = bet_id
         self.title = title
         self.description = description
         self.answer_type = answer_type
         self.close_at = close_at
         self.correct_answer = correct_answer
-        self.state = state
+        self.is_open = is_open
+        self.is_resolved = is_resolved
 
 ## ----------- USER FUNCTIONS ----------- ##
 def create_user(user: User):
@@ -99,8 +100,36 @@ def update_user_password(user_id, new_password_hashed):
     res = supabase.table("users").update({"password": new_password_hashed}).eq("user_id", user_id).execute()
     return res is not None
 
+def update_user_password_by_email(email, new_password_hashed):
+    res = supabase.table("users").update({"password": new_password_hashed}).eq("email", email).execute()
+    return res
+
 def update_user_email(user_id, new_email):
     res = supabase.table("users").update({"email": new_email}).eq("user_id", user_id).execute()
+    return res
+
+def set_user_reset_code(email, code, expiry):
+    res = supabase.table("users").update({
+        "reset_code": code,
+        "reset_code_expiry": expiry.isoformat() if isinstance(expiry, datetime) else expiry
+    }).eq("email", email).execute()
+    return res
+
+def check_reset_code(email, code):
+    res = supabase.table("users").select("reset_code", "reset_code_expiry").eq("email", email).execute()
+    if not res.data:
+        return False
+    user = res.data[0]
+    stored_code = user.get("reset_code")
+    expiry = user.get("reset_code_expiry")
+    if not stored_code or not expiry or stored_code != code:
+        return False
+    if datetime.fromisoformat(expiry) < datetime.now():
+        return False
+    return True
+
+def clear_reset_code(email):
+    res = supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
     return res
 
 def add_reedz(user_id, delta):
@@ -122,53 +151,6 @@ def change_role(user_id, new_role):
 def get_leaderboard():
     res = supabase.table("users").select("username", "reedz_balance").order("reedz_balance", desc=True).execute()
     return res.data
-
-## ----------- BET FUNCTIONS ----------- ##
-import os
-from datetime import datetime
-from dotenv import load_dotenv
-from supabase import create_client, Client
-
-load_dotenv()
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise Exception("SUPABASE_URL and SUPABASE_KEY must be set in your .env file.")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# User model
-class User:
-    def __init__(self, user_id, username, password, email, reedz_balance, role, created_at):
-        self.user_id = user_id
-        self.username = username
-        self.password = password
-        self.email = email
-        self.reedz_balance = reedz_balance
-        self.role = role
-        self.created_at = created_at
-
-# Prediction model...
-class Prediction:
-    def __init__(self, prediction_id, user_id, bet_id, prediction, created_at):
-        self.prediction_id = prediction_id
-        self.user_id = user_id
-        self.bet_id = bet_id
-        self.prediction = prediction
-        self.created_at = created_at
-
-# Bet model...
-class Bet:
-    def __init__(self, bet_id, title, description, answer_type, close_at, correct_answer=None, is_open=True, is_resolved=False):
-        self.bet_id = bet_id
-        self.title = title
-        self.description = description
-        self.answer_type = answer_type
-        self.close_at = close_at
-        self.correct_answer = correct_answer
-        self.is_open = is_open
-        self.is_resolved = is_resolved
 
 ## ----------- BET FUNCTIONS ----------- ##
 def create_bet(user, title, description, answer_type, close_at):

@@ -7,6 +7,9 @@ from betting import create_bet, close_bet, resolve_bet, place_prediction, get_be
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import random
+import string
+from email_sender import send_password_reset_email
 
 load_dotenv()
 ADMIN_CODE = os.getenv("ADMIN_CODE")
@@ -16,6 +19,15 @@ if "user" not in st.session_state:
     st.session_state.user = None
 if "page" not in st.session_state:
     st.session_state.page = "home"
+
+def generate_reset_code(length=6):
+    return ''.join(random.choices(string.digits, k=length))
+
+def set_reset_code_for_email(email):
+    code = generate_reset_code()
+    expiry = datetime.now() + timedelta(minutes=15)
+    supabase_db.set_user_reset_code(email, code, expiry)
+    send_password_reset_email(email, code)
 
 def auth_panel():
     st.header("Reedz: Login / Register")
@@ -75,24 +87,47 @@ def auth_panel():
                     else:
                         st.error(f"Failed to register: {e}")
 
-    # Password reset
+    # Password reset (new workflow)
     with tab3:
-        email = st.text_input("Enter your email address (for reset)", key="reset_email")
-        new_password = st.text_input("Enter your new password", type='password', key="reset_new")
-        confirm_password = st.text_input("Confirm new password", type='password', key="reset_confirm")
-        if st.button("Reset Password"):
-            found_user = supabase_db.get_user_by_email(email)
-            if not found_user:
-                st.error("No user found for this email.")
-            elif new_password != confirm_password:
-                st.error("Passwords do not match.")
-            else:
-                hashed = hash_password(new_password)
-                ok = supabase_db.update_user_password(found_user.user_id, hashed)
-                if ok:
-                    st.success("Password reset. You may login.")
+        st.session_state.setdefault("sent_reset_email", False)
+        st.session_state.setdefault("reset_email_val", "")
+        st.session_state.setdefault("reset_code_sent_to", "")
+        
+        if not st.session_state["sent_reset_email"]:
+            email = st.text_input("Enter your email address (for reset)", key="reset_email")
+            if st.button("Send Reset Code"):
+                found_user = supabase_db.get_user_by_email(email)
+                if not found_user:
+                    st.error("No user found for this email.")
                 else:
-                    st.error("Password reset failed.")
+                    set_reset_code_for_email(email)
+                    st.session_state["sent_reset_email"] = True
+                    st.session_state["reset_email_val"] = email
+                    st.session_state["reset_code_sent_to"] = email
+                    st.success("A reset code has been sent to your email. Please check your inbox.")
+        else:
+            st.info(f"Reset email sent to: {st.session_state['reset_code_sent_to']}")
+            code = st.text_input("Enter reset code from email", max_chars=6)
+            new_password = st.text_input("Enter your new password", type="password", key="reset_new")
+            confirm_password = st.text_input("Confirm new password", type="password", key="reset_confirm")
+            if st.button("Reset Password"):
+                if not new_password or not confirm_password:
+                    st.error("Please enter your new password twice.")
+                elif new_password != confirm_password:
+                    st.error("Passwords do not match.")
+                elif not supabase_db.check_reset_code(st.session_state["reset_email_val"], code):
+                    st.error("Invalid or expired reset code.")
+                else:
+                    hashed = hash_password(new_password)
+                    ok = supabase_db.update_user_password_by_email(st.session_state["reset_email_val"], hashed)
+                    supabase_db.clear_reset_code(st.session_state["reset_email_val"])
+                    if ok:
+                        st.success("Password reset. You may login.")
+                        st.session_state["sent_reset_email"] = False
+                        st.session_state["reset_email_val"] = ""
+                        st.session_state["reset_code_sent_to"] = ""
+                    else:
+                        st.error("Password reset failed.")
 
 def leaderboard_panel():
     st.header("Leaderboard")
@@ -175,7 +210,10 @@ def place_prediction_panel(user):
         st.info("No open bets for prediction.")
         return
     opt = st.selectbox("Select bet to predict on", list(bet_titles.keys()))
-    bet_id = bet_titles[opt]
+    bet_id = bet_titles.get(opt)
+    if not bet_id:
+        st.info("No bet selected.")
+        return
     pred_val = st.text_input("Your Prediction (number or text)")
     if st.button("Place Prediction"):
         try:
@@ -192,7 +230,10 @@ def close_bet_panel(user):
         st.info("No open bets to close.")
         return
     opt = st.selectbox("Select bet to close", list(bet_titles.keys()))
-    bet_id = bet_titles[opt]
+    bet_id = bet_titles.get(opt)
+    if not bet_id:
+        st.info("No bet selected.")
+        return
     if st.button("Close Bet"):
         try:
             close_bet(user, bet_id)
@@ -208,7 +249,10 @@ def resolve_bet_panel(user):
         st.info("No bets available to resolve.")
         return
     opt = st.selectbox("Select bet to resolve", list(bet_titles.keys()))
-    bet_id = bet_titles[opt]
+    bet_id = bet_titles.get(opt)
+    if not bet_id:
+        st.info("No bet selected.")
+        return
     answer = st.text_input("Correct Answer")
     if st.button("Resolve Bet"):
         try:
@@ -278,12 +322,16 @@ def user_management_panel():
 
 def profile_panel(user):
     st.header("My Profile")
-    # Always fetch up-to-date info
     user_db = supabase_db.get_user_by_id(user.user_id)
     if user_db:
         st.write(f"**Username:** {user_db.username}")
         st.write(f"**Email:** {user_db.email}")
         st.write(f"**Reedz Balance:** {user_db.reedz_balance}")
+        show_password = st.checkbox("Show Password")
+        if show_password:
+            st.write(f"**Password (hashed):** `{user_db.password}`")
+        else:
+            st.write(f"**Password:** {'*' * 12}  (click 'Show Password' to reveal)")
     else:
         st.error("Could not retrieve user profile.")
 
