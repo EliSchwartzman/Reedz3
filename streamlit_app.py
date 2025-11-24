@@ -14,7 +14,6 @@ from email_sender import send_password_reset_email
 load_dotenv()
 ADMIN_CODE = os.getenv("ADMIN_CODE")
 
-# Minimal, professional page config
 st.set_page_config(page_title="Reedz Betting", layout="wide")
 
 if "user" not in st.session_state:
@@ -37,7 +36,6 @@ def auth_panel():
     st.divider()
     tab1, tab2, tab3 = st.tabs(["Login", "Register", "Reset Password"])
 
-    # Login
     with tab1:
         st.subheader("Login")
         with st.form("login_form", clear_on_submit=False):
@@ -54,7 +52,6 @@ def auth_panel():
                 else:
                     st.error("Login failed")
 
-    # Register
     with tab2:
         st.subheader("Register")
         with st.form("register_form", clear_on_submit=False):
@@ -101,14 +98,12 @@ def auth_panel():
                         else:
                             st.error(f"Failed to register: {e}")
 
-    # Password reset (seamless flow, no emoji)
     with tab3:
         st.subheader("Password Reset")
         if "sent_reset_email" not in st.session_state:
             st.session_state["sent_reset_email"] = False
             st.session_state["reset_email_val"] = ""
             st.session_state["reset_code_sent_to"] = ""
-
         with st.form("reset_form", clear_on_submit=False):
             email = st.text_input("Enter your email address", value=st.session_state.get("reset_email_val", ""))
             send_code_clicked = st.form_submit_button("Send Reset Code")
