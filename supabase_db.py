@@ -7,7 +7,6 @@ from models import User, Bet, Prediction
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise Exception("SUPABASE_URL and SUPABASE_KEY must be set in your .env file.")
 
@@ -143,18 +142,25 @@ def get_bet(bet_id):
     if data:
         b = data[0]
         return Bet(
-            bet_id=b["bet_id"], title=b["title"], description=b["description"],
-            answer_type=b["answer_type"], close_at=b["close_at"],
-            correct_answer=b.get("correct_answer"),
+            bet_id=b["bet_id"],
+            created_by_user_id=b.get("created_by_user_id"),
+            title=b["title"],
+            description=b["description"],
+            answer_type=b["answer_type"],
             is_open=b.get("is_open", True),
-            is_resolved=b.get("is_resolved", False)
+            is_resolved=b.get("is_resolved", False),
+            created_at=b.get("created_at"),
+            close_at=b["close_at"],
+            resolved_at=b.get("resolved_at"),
+            correct_answer=b.get("correct_answer")
         )
     return None
 
 def get_bets_by_state(state):
     bets = supabase.table("bets").select(
-        "bet_id", "title", "description", "answer_type", "correct_answer",
-        "is_open", "is_resolved", "close_at"
+        "bet_id", "created_by_user_id", "title", "description",
+        "answer_type", "correct_answer", "is_open", "is_resolved",
+        "created_at", "close_at", "resolved_at"
     )
     if state == "open":
         res = bets.eq("is_open", True).eq("is_resolved", False).execute()
@@ -169,11 +175,11 @@ def get_bets_by_state(state):
 def get_bet_overview(state=""):
     return get_bets_by_state(state)
 
-def close_bet(user, bet_id):
+def close_bet(bet_id):
     res = supabase.table("bets").update({"is_open": False}).eq("bet_id", bet_id).execute()
     return res
 
-def resolve_bet(user, bet_id, correct_answer):
+def resolve_bet(bet_id, correct_answer):
     res = supabase.table("bets").update({
         "is_resolved": True, "correct_answer": correct_answer
     }).eq("bet_id", bet_id).execute()
@@ -192,7 +198,6 @@ def create_prediction(prediction: Prediction):
         "created_at": prediction.created_at if isinstance(prediction.created_at, str) else prediction.created_at.isoformat()
     }).execute()
     return res
-
 
 def get_predictions_for_bet(bet_id):
     res = supabase.table("predictions").select(
