@@ -88,27 +88,35 @@ def auth_panel():
                     else:
                         st.error(f"Failed to register: {e}")
 
-    # Password reset (with code input and change password)
+    # Password reset (dynamic fields show after sending code)
     with tab3:
-        st.session_state.setdefault("sent_reset_email", False)
-        st.session_state.setdefault("reset_email_val", "")
-        st.session_state.setdefault("reset_code_sent_to", "")
-        if not st.session_state["sent_reset_email"]:
-            email = st.text_input("Enter your email address (for reset)", key="reset_email")
-            if st.button("Send Reset Code"):
-                found_user = supabase_db.get_user_by_email(email)
-                if not found_user:
-                    st.error("No user found for this email.")
+        # Initialize state on first load
+        if "sent_reset_email" not in st.session_state:
+            st.session_state["sent_reset_email"] = False
+            st.session_state["reset_email_val"] = ""
+            st.session_state["reset_code_sent_to"] = ""
+
+        email = st.text_input("Enter your email address (for reset)", key="reset_email")
+        send_code_clicked = st.button("Send Reset Code")
+
+        if send_code_clicked:
+            found_user = supabase_db.get_user_by_email(email)
+            if not found_user:
+                st.error("No user found for this email.")
+                st.session_state["sent_reset_email"] = False
+            else:
+                success, error_msg = set_reset_code_for_email(email)
+                if success:
+                    st.session_state["sent_reset_email"] = True
+                    st.session_state["reset_email_val"] = email
+                    st.session_state["reset_code_sent_to"] = email
+                    st.success("A reset code has been sent to your email. Please check your inbox.")
                 else:
-                    success, error_msg = set_reset_code_for_email(email)
-                    if success:
-                        st.session_state["sent_reset_email"] = True
-                        st.session_state["reset_email_val"] = email
-                        st.session_state["reset_code_sent_to"] = email
-                        st.success("A reset code has been sent to your email. Please check your inbox.")
-                    else:
-                        st.error(f"Failed to send reset email: {error_msg}")
-        else:
+                    st.session_state["sent_reset_email"] = False
+                    st.error(f"Failed to send reset email: {error_msg}")
+
+        # Show reset code/password fields if code sent
+        if st.session_state["sent_reset_email"]:
             st.info(f"Reset code sent to: {st.session_state['reset_code_sent_to']}")
             code = st.text_input("Enter reset code from email", max_chars=6)
             new_password = st.text_input("Enter your new password", type="password", key="reset_new")
