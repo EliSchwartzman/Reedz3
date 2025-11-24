@@ -358,8 +358,8 @@ def main_panel():
     user = st.session_state.user
     st.sidebar.title("Reedz Betting Menu")
     st.sidebar.markdown(
-        f"**Username:** {user.username} | **Role:** {user.role} | **Reedz:** {user.reedz_balance}"
-    )
+        f"**Username:** {user.username}\n\n**Role:** {user.role}"
+        )
     st.sidebar.divider()
     pages = [
         "My Profile", "Leaderboard", "All Bets",
