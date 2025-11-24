@@ -1,7 +1,3 @@
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional
-
 # User model
 class User:
     def __init__(self, user_id, username, password, email, reedz_balance, role, created_at):
