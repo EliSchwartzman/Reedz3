@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from models import User, Bet, Prediction
@@ -84,15 +84,18 @@ def check_reset_code(email, code):
         return False
     try:
         expiry_dt = datetime.fromisoformat(expiry)
+        # If naive, treat as UTC (depends on your storage convention)
+        if expiry_dt.tzinfo is None:
+            expiry_dt = expiry_dt.replace(tzinfo=timezone.utc)
     except Exception:
-        # Malformed expiry; clear reset code
         supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
         return False
-    # Enforce 5-minute expiry policy
-    if expiry_dt < datetime.now() - timedelta(minutes=5):
+    now_utc = datetime.now(timezone.utc)
+    if expiry_dt < now_utc - timedelta(minutes=5):
         supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
         return False
     return True
+
 
 def clear_reset_code(email):
     res = supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
