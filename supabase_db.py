@@ -1,9 +1,8 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from models import User, Bet, Prediction
-from datetime import datetime, timedelta
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -13,7 +12,6 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-## ----------- USER FUNCTIONS ----------- ##
 def create_user(user: User):
     res = supabase.table("users").insert({
         "username": user.username,
@@ -30,47 +28,38 @@ def list_all_users():
     return res.data
 
 def get_user_by_username(username):
-    res = supabase.table("users").select("*").eq("username", username).execute()
+    res = supabase.table("users").select("*").eq("username", username).limit(1).execute()
     data = res.data
-    if data:
-        u = data[0]
-        return User(
-            user_id=u["user_id"], username=u["username"], password=u["password"],
-            email=u.get("email", ""), reedz_balance=u["reedz_balance"],
-            role=u["role"], created_at=u["created_at"]
-        )
-    return None
+    if not data:
+        return None
+    user = data[0]
+    return User(user_id=user["user_id"], username=user["username"], password=user["password"], email=user["email"],
+                reedz_balance=user["reedz_balance"], role=user["role"], created_at=user["created_at"])
 
 def get_user_by_email(email):
-    res = supabase.table("users").select("*").eq("email", email).execute()
+    res = supabase.table("users").select("*").eq("email", email).limit(1).execute()
     data = res.data
-    if data:
-        u = data[0]
-        return User(
-            user_id=u["user_id"], username=u["username"], password=u["password"],
-            email=u["email"], reedz_balance=u["reedz_balance"],
-            role=u["role"], created_at=u["created_at"]
-        )
-    return None
+    if not data:
+        return None
+    user = data[0]
+    return User(user_id=user["user_id"], username=user["username"], password=user["password"], email=user["email"],
+                reedz_balance=user["reedz_balance"], role=user["role"], created_at=user["created_at"])
 
 def get_user_by_id(user_id):
     res = supabase.table("users").select("*").eq("user_id", user_id).execute()
     data = res.data
-    if data:
-        u = data[0]
-        return User(
-            user_id=u["user_id"], username=u["username"], password=u["password"],
-            email=u["email"], reedz_balance=u["reedz_balance"],
-            role=u["role"], created_at=u["created_at"]
-        )
-    return None
+    if not data:
+        return None
+    user = data[0]
+    return User(user_id=user["user_id"], username=user["username"], password=user["password"], email=user["email"],
+                reedz_balance=user["reedz_balance"], role=user["role"], created_at=user["created_at"])
 
-def update_user_password(user_id, new_password_hashed):
-    res = supabase.table("users").update({"password": new_password_hashed}).eq("user_id", user_id).execute()
-    return res is not None
+def update_user_password(user_id, hashed_password):
+    res = supabase.table("users").update({"password": hashed_password}).eq("user_id", user_id).execute()
+    return res
 
-def update_user_password_by_email(email, new_password_hashed):
-    res = supabase.table("users").update({"password": new_password_hashed}).eq("email", email).execute()
+def update_user_password_by_email(email, hashed_password):
+    res = supabase.table("users").update({"password": hashed_password}).eq("email", email).execute()
     return res
 
 def update_user_email(user_id, new_email):
@@ -93,27 +82,21 @@ def check_reset_code(email, code):
     expiry = user.get("reset_code_expiry")
     if not stored_code or not expiry or stored_code != code:
         return False
-    if datetime.fromisoformat(expiry) < datetime.now():
+    try:
+        expiry_dt = datetime.fromisoformat(expiry)
+    except Exception:
+        # Malformed expiry; clear reset code
+        supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
+        return False
+    # Enforce 5-minute expiry policy
+    if expiry_dt < datetime.now() - timedelta(minutes=5):
+        supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
         return False
     return True
 
 def clear_reset_code(email):
     res = supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
     return res
-
-def clear_expired_reset_codes():
-    """Clears all reset codes in Supabase users table where expiry is past 5 minutes."""
-    threshold = datetime.now() - timedelta(minutes=5)
-    # Select all users with expired reset_code_expiry
-    users = supabase.table("users").select("email", "reset_code_expiry")\
-        .lt("reset_code_expiry", threshold.isoformat()).execute().data
-    for user in users:
-        email = user.get("email")
-        if email:
-            supabase.table("users").update({
-                "reset_code": None,
-                "reset_code_expiry": None
-            }).eq("email", email).execute()
 
 def add_reedz(user_id, delta):
     user = get_user_by_id(user_id)
@@ -135,7 +118,6 @@ def get_leaderboard():
     res = supabase.table("users").select("username", "reedz_balance").order("reedz_balance", desc=True).execute()
     return res.data
 
-## ----------- BET FUNCTIONS ----------- ##
 def create_bet(bet: Bet):
     res = supabase.table("bets").insert({
         "created_by_user_id": bet.created_by_user_id,
@@ -200,7 +182,10 @@ def resolve_bet(bet_id, correct_answer):
     }).eq("bet_id", bet_id).execute()
     return res
 
-## ----------- PREDICTION FUNCTIONS ----------- ##
+def mark_bet_distributed(bet_id):
+    res = supabase.table("bets").update({"distributed": True}).eq("bet_id", bet_id).execute()
+    return res
+
 def create_prediction(prediction: Prediction):
     res = supabase.table("predictions").insert({
         "user_id": prediction.user_id,
