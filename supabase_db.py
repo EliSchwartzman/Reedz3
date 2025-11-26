@@ -3,6 +3,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from models import User, Bet, Prediction
+from datetime import datetime, timedelta
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -99,6 +100,20 @@ def check_reset_code(email, code):
 def clear_reset_code(email):
     res = supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
     return res
+
+def clear_expired_reset_codes():
+    """Clears all reset codes in Supabase users table where expiry is past 5 minutes."""
+    threshold = datetime.now() - timedelta(minutes=5)
+    # Select all users with expired reset_code_expiry
+    users = supabase.table("users").select("email", "reset_code_expiry")\
+        .lt("reset_code_expiry", threshold.isoformat()).execute().data
+    for user in users:
+        email = user.get("email")
+        if email:
+            supabase.table("users").update({
+                "reset_code": None,
+                "reset_code_expiry": None
+            }).eq("email", email).execute()
 
 def add_reedz(user_id, delta):
     user = get_user_by_id(user_id)
