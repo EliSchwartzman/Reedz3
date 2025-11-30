@@ -1,36 +1,40 @@
-import streamlit as st
-import re
-from models import User
-from auth import hash_password, authenticate, is_admin
-import supabase_db
-from betting import create_bet, close_bet, resolve_bet, place_prediction, get_bet_overview
-from datetime import datetime, timedelta
-import os
-from dotenv import load_dotenv
-import random
-import string
-from email_sender import send_password_reset_email
+import streamlit as st # Used to get built-in streamlit variables
+import re # Used to limit the types of characters allowed in usernames
+from models import User # Used to create User objects
+from auth import hash_password, authenticate, is_admin # Used for authentication and authorization
+import supabase_db # Used to interact with the Supabase database
+from betting import create_bet, close_bet, resolve_bet, place_prediction, get_bet_overview # Used for betting operations
+from datetime import datetime, timedelta # Used for handling date and time
+import os # Used to access environment variables
+from dotenv import load_dotenv # Used to load environment variables from .env file
+import random # Used to generate random reset codes
+import string # Used to generate random reset codes
+from email_sender import send_password_reset_email # Used to send password reset emails
 
-load_dotenv()
-ADMIN_CODE = os.getenv("ADMIN_CODE")
+load_dotenv() # Load environment variables from .env file
+ADMIN_CODE = os.getenv("ADMIN_CODE") # Admin verification code from environment variables
 
-st.set_page_config(page_title="Reedz Betting", layout="wide")
+st.set_page_config(page_title="Reedz Betting", layout="wide") # Set Streamlit page configuration
 
-if "user" not in st.session_state:
+# Initalize session state variables for the user and home page which are used to track login status and the current page
+if "user" not in st.session_state: 
     st.session_state.user = None
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
-def generate_reset_code(length=6):
-    return ''.join(random.choices(string.digits, k=length))
-
+# Generates a random numeric reset code of length 6
+def generate_reset_code(length=6): 
+    return ''.join(random.choices(string.digits, k=length)) 
+# Generates a random password reset code
 def set_reset_code_for_email(email):
     code = generate_reset_code()
-    expiry = datetime.now() + timedelta(minutes=15)
-    supabase_db.set_user_reset_code(email, code, expiry)
-    success, error_msg = send_password_reset_email(email, code)
-    return success, error_msg
+    expiry = datetime.now() + timedelta(minutes=5) # Code will expire in 5 minutes
+    supabase_db.set_user_reset_code(email, code, expiry) # Store the reset code in the database and its expiration time
+    success, error_msg = send_password_reset_email(email, code) # Send the reset code via email
+    return success, error_msg 
 
+# Renders the authentication panel for login, registration, and password reset
+# This is the first page the user sees when the load the webpage if they are not already logged in
 def auth_panel():
     st.title("Reedz Betting")
     st.divider()
