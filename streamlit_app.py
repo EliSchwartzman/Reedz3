@@ -5,7 +5,7 @@ from auth import hash_password, authenticate, is_admin
 import supabase_db
 from betting import create_bet, close_bet, resolve_bet, place_prediction, get_bet_overview
 from datetime import datetime, timedelta
-import time  # ✅ FIXED: Import your time helper module
+import time as time_helper
 import os
 from dotenv import load_dotenv
 import random
@@ -180,14 +180,14 @@ def bets_panel():
     with st.expander("Open Bets", expanded=True):
         if open_bets:
             for bet in open_bets:
-                st.write(f"**ID {bet['bet_id']}** | {bet['title']} (closes {time.format_et(bet['close_at'])})")
+                st.write(f"**ID {bet['bet_id']}** | {bet['title']} (closes {time_helper.format_et(bet['close_at'])})")
         else:
             st.info("No open bets.")
 
     with st.expander("Closed Bets"):
         if closed_bets:
             for bet in closed_bets:
-                st.write(f"**ID {bet['bet_id']}** | {bet['title']} (closed {time.format_et(bet['close_at'])})")
+                st.write(f"**ID {bet['bet_id']}** | {bet['title']} (closed {time_helper.format_et(bet['close_at'])})")
         else:
             st.info("No closed bets.")
 
@@ -237,7 +237,7 @@ def predictions_panel():
             pred_data.append({
                 "User": user_cache[user_id],
                 "Prediction": p["prediction"],
-                "Created": time.format_et(p["created_at"])
+                "Created": time_helper.format_et(p["created_at"])
             })
         
         st.dataframe(pred_data, use_container_width=True)
@@ -389,7 +389,8 @@ def profile_panel(user):
         with col2:
             st.write(f"**Reedz Balance:** ${user_db.reedz_balance:,}")
             st.write(f"**Role:** {user_db.role}")
-            st.write(f"**Member Since:** {time.format_et(user_db.created_at)}")
+            st.write(f"**Member Since:** {time_helper.format_et(user_db.created_at)}")  # ✅ FIXED
+    else:
         st.error("Could not retrieve user profile.")
 
 

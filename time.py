@@ -16,9 +16,11 @@ def format_et(dt_val):
     if isinstance(dt_val, str):
         try:
             dt = datetime.fromisoformat(dt_val)
-        except Exception:
+        except:
             return str(dt_val)
     else:
         dt = dt_val
-    edt = utc_to_eastern(dt)
-    return edt.strftime("%Y-%m-%d %I:%M %p ET") if edt else str(dt_val)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    edt = dt.astimezone(ET_ZONE)
+    return edt.strftime("%Y-%m-%d %I:%M %p ET")
