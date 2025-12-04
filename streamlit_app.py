@@ -381,7 +381,17 @@ def user_management_panel():
 
 def profile_panel(user):
     st.subheader("My Profile")
-    user_db = supabase_db.get_user_by_id(user.user_id)
+
+    # Support both user.user_id and user.userid
+    user_id = getattr(user, "user_id", None)
+    if user_id is None:
+        user_id = getattr(user, "userid", None)
+
+    if user_id is None:
+        st.error("Could not determine user ID.")
+        return
+
+    user_db = supabase_db.get_user_by_id(user_id)
     if user_db:
         col1, col2 = st.columns(2)
         with col1:
@@ -392,13 +402,12 @@ def profile_panel(user):
             st.write(f"**Role:** {user_db.role}")
 
             created_val = user_db.created_at
-            # Safely convert to ISO string for formatter
             if hasattr(created_val, "isoformat"):
                 created_val = created_val.isoformat()
-
             st.write(f"**Member Since:** {time.format_et(created_val)}")
     else:
         st.error("Could not retrieve user profile.")
+
 
 
 def main_panel():
