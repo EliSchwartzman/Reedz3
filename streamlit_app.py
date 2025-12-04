@@ -427,10 +427,6 @@ def run_app():
         auth_panel()
     else:
         main_panel()
-        
-if st.sidebar.checkbox("Test time_utils"):
-    test_time = time_utils.format_et("2025-12-04T19:30:00Z")
-    st.write(f"Test: {test_time}")  # Should show "2025-12-04 2:30 PM ET"
 
 if __name__ == "__main__" or st._is_running_with_streamlit:
     run_app()
