@@ -226,8 +226,8 @@ def predictions_panel():
         user_cache = {}
         pred_data = []
         for p in predictions:
-            # FIXED: p is DICT, use p["user_id"]
-            user_id = p["user_id"]
+            # ✅ FIXED: p is Prediction OBJECT, use .user_id attribute
+            user_id = p.user_id  # NOT p["user_id"]
             
             if user_id not in user_cache:
                 user = supabase_db.get_user_by_id(user_id)
@@ -235,13 +235,14 @@ def predictions_panel():
             
             pred_data.append({
                 "User": user_cache[user_id],
-                "Prediction": p["prediction"],
-                "Created": timestamper.format_et(p["created_at"])
+                "Prediction": p.prediction,  # NOT p["prediction"]
+                "Created": timestamper.format_et(p.created_at)  # NOT p["created_at"]
             })
         
         st.dataframe(pred_data, use_container_width=True)
     else:
         st.info("No predictions for this bet.")
+
 
 def create_bet_panel(user):
     st.subheader("Create a Bet")
