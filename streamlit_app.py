@@ -1,17 +1,20 @@
-import streamlit as st # Used to get built-in streamlit variables
-import re # Used to limit the types of characters allowed in usernames
-from models import User # Used to create User objects
-from auth import hash_password, authenticate, is_admin # Used for authentication and authorization
-import supabase_db # Used to interact with the Supabase database
-from betting import create_bet, close_bet, resolve_bet, place_prediction, get_bet_overview # Used for betting operations
-from datetime import datetime, timedelta # Used for handling date and time
-import os # Used to access environment variables
-from dotenv import load_dotenv # Used to load environment variables from .env file
-import random # Used to generate random reset codes
-import string # Used to generate random reset codes
-from email_sender import send_password_reset_email # Used to send password reset emails
-from datetime import datetime
-from time_utils import utc_to_eastern
+import streamlit as st
+import re
+from models import User
+from auth import hash_password, authenticate, is_admin
+import supabase_db
+from betting import create_bet, close_bet, resolve_bet, place_prediction, get_bet_overview
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+import time_utils  # ADD THIS LINE
+import os
+from dotenv import load_dotenv
+import random
+import string
+from email_sender import send_password_reset_email
+
+load_dotenv()
+
 
 load_dotenv() # Load environment variables from .env file
 ADMIN_CODE = os.getenv("ADMIN_CODE") # Admin verification code from environment variables
@@ -176,46 +179,66 @@ def bets_panel():
     open_bets = get_bet_overview("open")
     closed_bets = get_bet_overview("closed")
     resolved_bets = get_bet_overview("resolved")
+
     with st.expander("Open Bets", expanded=True):
         if open_bets:
             for bet in open_bets:
-                st.write(f"Bet ID: {bet['bet_id']} — {bet['title']}")
+                st.write(f"**ID {bet['bet_id']}** | {bet['title']} (closes {time_utils.format_et(bet['close_at'])})")
         else:
             st.info("No open bets.")
+
     with st.expander("Closed Bets"):
         if closed_bets:
             for bet in closed_bets:
-                st.write(f"Bet ID: {bet['bet_id']} — {bet['title']}")
+                st.write(f"**ID {bet['bet_id']}** | {bet['title']} (closed {time_utils.format_et(bet['close_at'])})")
         else:
             st.info("No closed bets.")
+
     with st.expander("Resolved Bets"):
         if resolved_bets:
             for bet in resolved_bets:
-                ans_str = f", Answer: {bet['correct_answer']}" if bet.get('correct_answer') else ""
-                st.write(f"Bet ID: {bet['bet_id']} — {bet['title']}{ans_str}")
+                ans_str = f" | Answer: {bet['correct_answer']}" if bet.get('correct_answer') else ""
+                st.write(f"**ID {bet['bet_id']}** | {bet['title']}{ans_str}")
         else:
             st.info("No resolved bets.")
 
+
 def predictions_panel():
     st.subheader("View Predictions for a Bet")
-    all_bets = get_bet_overview("")
+    all_bets = get_bet_overview("open") + get_bet_overview("closed") + get_bet_overview("resolved")
     if not all_bets:
         st.info("No bets available.")
         return
-    bet_titles = {f"ID {b['bet_id']}: {b['title']}": b['bet_id'] for b in all_bets}
+    
+    bet_titles = {f"ID {b['bet_id']} - {b['title'][:50]}...": b['bet_id'] for b in all_bets}
     opt = st.selectbox("Select a bet", list(bet_titles.keys()))
+    
     if not opt:
         st.info("No bet selected.")
         return
+    
     bet_id = bet_titles[opt]
     predictions = supabase_db.get_predictions_for_bet(bet_id)
+    
     if predictions:
-        st.dataframe(
-            [{"User": supabase_db.get_user_by_username(p.user_id).username if supabase_db.get_user_by_username(p.user_id) else p.user_id, "Prediction": p.prediction} for p in predictions],
-            use_container_width=True
-        )
+        user_cache = {}
+        pred_data = []
+        for p in predictions:
+            user_id = p["user_id"]
+            if user_id not in user_cache:
+                user = supabase_db.get_user_by_id(user_id)
+                user_cache[user_id] = user.username if user else f"ID {user_id}"
+            
+            pred_data.append({
+                "User": user_cache[user_id],
+                "Prediction": p["prediction"],
+                "Created": time_utils.format_et(p["created_at"])  # FIXED
+            })
+        
+        st.dataframe(pred_data, use_container_width=True)
     else:
         st.info("No predictions for this bet.")
+
 
 def create_bet_panel(user):
     st.subheader("Create a Bet")
@@ -404,6 +427,10 @@ def run_app():
         auth_panel()
     else:
         main_panel()
+        
+if st.sidebar.checkbox("Test time_utils"):
+    test_time = time_utils.format_et("2025-12-04T19:30:00Z")
+    st.write(f"Test: {test_time}")  # Should show "2025-12-04 2:30 PM ET"
 
 if __name__ == "__main__" or st._is_running_with_streamlit:
     run_app()

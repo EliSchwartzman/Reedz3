@@ -19,8 +19,8 @@ def format_et(dt_val):
         try:
             dt = datetime.fromisoformat(dt_val)
         except Exception:
-            return dt_val
+            return str(dt_val)
     else:
         dt = dt_val
     edt = utc_to_eastern(dt)
-    return edt.strftime("%Y-%m-%d %I:%M %p ET") if edt else ""
+    return edt.strftime("%Y-%m-%d %I:%M %p ET") if edt else str(dt_val)
