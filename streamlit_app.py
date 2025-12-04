@@ -391,7 +391,7 @@ def profile_panel(user):
             st.write(f"**Username:** {user_db.username}")
             st.write(f"**Email:** {user_db.email}")
         with col2:
-            st.write(f"**Reedz Balance:** ${user_db.reedzbalance:,}")
+            st.write(f"**Reedz Balance:** {user_db.reedzbalance:,}")
             st.write(f"**Role:** {user_db.role}")
             st.write(f"**Member Since:** {time_utils.format_et(user_db.createdat)}")
     else:
