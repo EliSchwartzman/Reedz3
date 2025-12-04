@@ -1,32 +1,48 @@
 class User:
-    def __init__(self, user_id, username, password, email, reedz_balance, role, created_at):
-        self.user_id = user_id
+    def __init__(self, userid, username, password, email, reedzbalance, role, createdat):
+        self.userid = userid
         self.username = username
         self.password = password
         self.email = email
-        self.reedz_balance = reedz_balance
+        self.reedzbalance = reedzbalance
         self.role = role
-        self.created_at = created_at
+        self.createdat = createdat
+
 
 class Prediction:
-    def __init__(self, prediction_id, user_id, bet_id, prediction, created_at):
-        self.prediction_id = prediction_id
-        self.user_id = user_id
-        self.bet_id = bet_id
+    def __init__(self, predictionid, userid, betid, prediction, createdat):
+        self.predictionid = predictionid
+        self.userid = userid
+        self.betid = betid
         self.prediction = prediction
-        self.created_at = created_at
+        self.createdat = createdat
+
 
 class Bet:
-    def __init__(self, bet_id, created_by_user_id, title, description, answer_type,
-                 is_open, is_resolved, created_at, close_at, resolved_at=None, correct_answer=None):
-        self.bet_id = bet_id
-        self.created_by_user_id = created_by_user_id
+    def __init__(
+        self,
+        betid,
+        createdbyuserid,
+        title,
+        description,
+        answertype,
+        isopen,
+        isresolved,
+        createdat,
+        closeat,
+        resolvedat=None,
+        correctanswer=None,
+        is_closed=False,
+    ):
+        self.betid = betid
+        self.createdbyuserid = createdbyuserid
         self.title = title
         self.description = description
-        self.answer_type = answer_type
-        self.is_open = is_open
-        self.is_resolved = is_resolved
-        self.created_at = created_at
-        self.close_at = close_at
-        self.resolved_at = resolved_at
-        self.correct_answer = correct_answer
+        self.answertype = answertype
+        self.isopen = isopen
+        self.isresolved = isresolved
+        self.createdat = createdat
+        self.closeat = closeat
+        self.resolvedat = resolvedat
+        self.correctanswer = correctanswer
+        self.is_closed = is_closed
