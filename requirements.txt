@@ -1,5 +1,4 @@
-streamlit>=1.26
+streamlit==1.38.0
 supabase
-bcrypt
-pytest
 python-dotenv
+bcrypt

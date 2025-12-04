@@ -13,8 +13,6 @@ import random
 import string
 from email_sender import send_password_reset_email
 
-load_dotenv()
-
 
 load_dotenv() # Load environment variables from .env file
 ADMIN_CODE = os.getenv("ADMIN_CODE") # Admin verification code from environment variables
