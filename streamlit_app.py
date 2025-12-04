@@ -390,7 +390,6 @@ def profile_panel(user):
             st.write(f"**Reedz Balance:** ${user_db.reedz_balance:,}")
             st.write(f"**Role:** {user_db.role}")
             st.write(f"**Member Since:** {time.format_et(user_db.created_at)}")
-    else:
         st.error("Could not retrieve user profile.")
 
 
