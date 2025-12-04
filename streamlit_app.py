@@ -195,10 +195,11 @@ def bets_panel():
     with st.expander("Resolved Bets"):
         if resolved_bets:
             for bet in resolved_bets:
-                ans_str = f" | Answer: {bet['correct_answer']}" if bet.get('correct_answer') else ""
+                ans_str = f" | Answer: {bet.get('correct_answer', 'N/A')}"
                 st.write(f"**ID {bet['bet_id']}** | {bet['title']}{ans_str}")
         else:
             st.info("No resolved bets.")
+
 
 
 def predictions_panel():
@@ -208,7 +209,7 @@ def predictions_panel():
         st.info("No bets available.")
         return
     
-    # FIXED: Full titles + status, NO emojis
+    # Clean dropdown with status
     bet_titles = {}
     for b in all_bets:
         status = "Open" if not b.get('is_closed') and not b.get('is_resolved') else \
@@ -216,7 +217,6 @@ def predictions_panel():
         bet_titles[f"ID {b['bet_id']} - {b['title']} ({status})"] = b['bet_id']
     
     opt = st.selectbox("Select a bet", list(bet_titles.keys()))
-    
     if not opt:
         st.info("No bet selected.")
         return
@@ -228,23 +228,22 @@ def predictions_panel():
         user_cache = {}
         pred_data = []
         for p in predictions:
-            user_id = p.userid
+            # FIXED: p is DICT, use p["user_id"]
+            user_id = p["user_id"]
+            
             if user_id not in user_cache:
                 user = supabase_db.get_user_by_id(user_id)
                 user_cache[user_id] = user.username if user else f"ID {user_id}"
             
             pred_data.append({
                 "User": user_cache[user_id],
-                "Prediction": p.prediction,
-                "Created": time.format_et(p.createdat)
+                "Prediction": p["prediction"],
+                "Created": time.format_et(p["created_at"])
             })
         
         st.dataframe(pred_data, use_container_width=True)
     else:
         st.info("No predictions for this bet.")
-
-
-
 
 def create_bet_panel(user):
     st.subheader("Create a Bet")
@@ -381,32 +380,20 @@ def user_management_panel():
 
 def profile_panel(user):
     st.subheader("My Profile")
-
-    # Support both user.user_id and user.userid
-    user_id = getattr(user, "user_id", None)
-    if user_id is None:
-        user_id = getattr(user, "userid", None)
-
-    if user_id is None:
-        st.error("Could not determine user ID.")
-        return
-
-    user_db = supabase_db.get_user_by_id(user_id)
+    user_db = supabase_db.get_user_by_id(user.user_id)
+    
     if user_db:
         col1, col2 = st.columns(2)
         with col1:
             st.write(f"**Username:** {user_db.username}")
             st.write(f"**Email:** {user_db.email}")
         with col2:
-            st.write(f"**Reedz Balance:** {user_db.reedz_balance:,}")
+            st.write(f"**Reedz Balance:** ${user_db.reedz_balance:,}")
             st.write(f"**Role:** {user_db.role}")
-
-            created_val = user_db.created_at
-            if hasattr(created_val, "isoformat"):
-                created_val = created_val.isoformat()
-            st.write(f"**Member Since:** {time.format_et(created_val)}")
+            st.write(f"**Member Since:** {time.format_et(user_db.created_at)}")
     else:
         st.error("Could not retrieve user profile.")
+
 
 
 
