@@ -20,9 +20,9 @@ def create_user(user: User):
         "username": user.username,
         "password": user.password,
         "email": user.email,
-        "reedz_balance": user.reedzbalance,
+        "reedz_balance": user.reedz_balance,
         "role": user.role,
-        "created_at": user.createdat.isoformat() if isinstance(user.createdat, datetime) else user.createdat,
+        "created_at": user.created_at.isoformat() if isinstance(user.created_at, datetime) else user.created_at,
     }).execute()
     return res
 
@@ -37,13 +37,13 @@ def get_user_by_username(username):
         return None
     user = data[0]
     return User(
-        userid=user["user_id"],
+        user_id=user["user_id"],
         username=user["username"],
         password=user["password"],
         email=user["email"],
-        reedzbalance=user["reedz_balance"],
+        reedz_balance=user["reedz_balance"],
         role=user["role"],
-        createdat=user["created_at"]
+        created_at=user["created_at"]
     )
 
 def get_user_by_email(email):
@@ -53,13 +53,13 @@ def get_user_by_email(email):
         return None
     user = data[0]
     return User(
-        userid=user["user_id"],
+        user_id=user["user_id"],
         username=user["username"],
         password=user["password"],
         email=user["email"],
-        reedzbalance=user["reedz_balance"],
+        reedz_balance=user["reedz_balance"],
         role=user["role"],
-        createdat=user["created_at"]
+        created_at=user["created_at"]
     )
 
 def get_user_by_id(user_id):
@@ -113,6 +113,7 @@ def check_reset_code(email, code):
     except Exception:
         supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
         return False
+
     now_utc = datetime.now(timezone.utc)
     if expiry_dt < now_utc - timedelta(minutes=5):
         supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
@@ -123,20 +124,20 @@ def clear_reset_code(email):
     res = supabase.table("users").update({"reset_code": None, "reset_code_expiry": None}).eq("email", email).execute()
     return res
 
-def add_reedz(userid, delta):
-    user = get_user_by_id(userid)
+def add_reedz(user_id, delta):
+    user = get_user_by_id(user_id)
     if not user:
         return None
-    new_balance = user.reedzbalance + delta
-    res = supabase.table("users").update({"reedz_balance": new_balance}).eq("user_id", userid).execute()
+    new_balance = user.reedz_balance + delta
+    res = supabase.table("users").update({"reedz_balance": new_balance}).eq("user_id", user_id).execute()
     return res
 
-def delete_user(userid):
-    res = supabase.table("users").delete().eq("user_id", userid).execute()
+def delete_user(user_id):
+    res = supabase.table("users").delete().eq("user_id", user_id).execute()
     return res
 
-def change_role(userid, new_role):
-    res = supabase.table("users").update({"role": new_role}).eq("user_id", userid).execute()
+def change_role(user_id, new_role):
+    res = supabase.table("users").update({"role": new_role}).eq("user_id", user_id).execute()
     return res
 
 def get_leaderboard():
@@ -199,8 +200,8 @@ def get_bets_by_state(state):
 def get_bet_overview(state):
     return get_bets_by_state(state)
 
-def close_bet(betid):
-    res = supabase.table("bets").update({"is_open": False, "is_closed": True}).eq("bet_id", betid).execute()
+def close_bet(bet_id):
+    res = supabase.table("bets").update({"is_open": False, "is_closed": True}).eq("bet_id", bet_id).execute()
     return res
 
 def resolve_bet(bet_id, correct_answer):
