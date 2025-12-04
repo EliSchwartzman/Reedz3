@@ -8,7 +8,6 @@ class User:
         self.role = role
         self.createdat = createdat
 
-
 class Prediction:
     def __init__(self, predictionid, userid, betid, prediction, createdat):
         self.predictionid = predictionid
@@ -16,7 +15,6 @@ class Prediction:
         self.betid = betid
         self.prediction = prediction
         self.createdat = createdat
-
 
 class Bet:
     def __init__(
