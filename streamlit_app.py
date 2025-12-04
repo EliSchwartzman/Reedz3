@@ -210,7 +210,13 @@ def predictions_panel():
         st.info("No bets available.")
         return
     
-    bet_titles = {f"ID {b['bet_id']} - {b['title'][:50]}...": b['bet_id'] for b in all_bets}
+    # FIXED: Full titles + status, NO emojis
+    bet_titles = {}
+    for b in all_bets:
+        status = "Open" if not b.get('is_closed') and not b.get('is_resolved') else \
+                "Closed" if b.get('is_closed') else "Resolved"
+        bet_titles[f"ID {b['bet_id']} - {b['title']} ({status})"] = b['bet_id']
+    
     opt = st.selectbox("Select a bet", list(bet_titles.keys()))
     
     if not opt:
@@ -224,22 +230,21 @@ def predictions_panel():
         user_cache = {}
         pred_data = []
         for p in predictions:
-            # FIXED: p is Prediction object, use .userid attribute
-            user_id = p.userid  # NOT p["user_id"]
-            
+            user_id = p.userid
             if user_id not in user_cache:
                 user = supabase_db.get_user_by_id(user_id)
                 user_cache[user_id] = user.username if user else f"ID {user_id}"
             
             pred_data.append({
                 "User": user_cache[user_id],
-                "Prediction": p.prediction,  # NOT p["prediction"]
-                "Created": time_utils.format_et(p.createdat)  # NOT p["created_at"]
+                "Prediction": p.prediction,
+                "Created": time_utils.format_et(p.createdat)
             })
         
         st.dataframe(pred_data, use_container_width=True)
     else:
         st.info("No predictions for this bet.")
+
 
 
 
