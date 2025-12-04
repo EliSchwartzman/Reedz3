@@ -381,8 +381,7 @@ def user_management_panel():
 
 def profile_panel(user):
     st.subheader("My Profile")
-    user_db = supabase_db.get_user_by_id(user.userid)
-    
+    user_db = supabase_db.get_user_by_id(user.user_id)
     if user_db:
         col1, col2 = st.columns(2)
         with col1:
@@ -391,7 +390,13 @@ def profile_panel(user):
         with col2:
             st.write(f"**Reedz Balance:** {user_db.reedz_balance:,}")
             st.write(f"**Role:** {user_db.role}")
-            st.write(f"**Member Since:** {time.format_et(user_db.created_at)}")
+
+            created_val = user_db.created_at
+            # Safely convert to ISO string for formatter
+            if hasattr(created_val, "isoformat"):
+                created_val = created_val.isoformat()
+
+            st.write(f"**Member Since:** {time.format_et(created_val)}")
     else:
         st.error("Could not retrieve user profile.")
 
