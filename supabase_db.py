@@ -62,32 +62,32 @@ def get_user_by_email(email):
         createdat=user["created_at"]
     )
 
-def get_user_by_id(userid):
-    res = supabase.table("users").select("*").eq("user_id", userid).execute()
+def get_user_by_id(user_id):
+    res = supabase.table("users").select("*").eq("user_id", user_id).execute()
     data = res.data
     if not data:
         return None
-    user = data[0]
+    user_data = data[0]
     return User(
-        userid=user["user_id"],
-        username=user["username"],
-        password=user["password"],
-        email=user["email"],
-        reedzbalance=user["reedz_balance"],
-        role=user["role"],
-        createdat=user["created_at"]
+        user_id=user_data["user_id"],
+        username=user_data["username"],
+        password=user_data["password"],
+        email=user_data["email"],
+        reedz_balance=user_data["reedz_balance"],
+        role=user_data["role"],
+        created_at=user_data["created_at"],
     )
 
-def update_user_password(userid, hashed_password):
-    res = supabase.table("users").update({"password": hashed_password}).eq("user_id", userid).execute()
+def update_user_password(user_id, hashed_password):
+    res = supabase.table("users").update({"password": hashed_password}).eq("user_id", user_id).execute()
     return res
 
 def update_user_password_by_email(email, hashed_password):
     res = supabase.table("users").update({"password": hashed_password}).eq("email", email).execute()
     return res
 
-def update_user_email(userid, new_email):
-    res = supabase.table("users").update({"email": new_email}).eq("user_id", userid).execute()
+def update_user_email(user_id, new_email):
+    res = supabase.table("users").update({"email": new_email}).eq("user_id", user_id).execute()
     return res
 
 def set_user_reset_code(email, code, expiry):
@@ -146,38 +146,38 @@ def get_leaderboard():
 # BET FUNCTIONS
 def create_bet(bet: Bet):
     res = supabase.table("bets").insert({
-        "created_by_user_id": bet.createdbyuserid,
+        "created_by_user_id": bet.created_by_user_id,
         "title": bet.title,
         "description": bet.description,
-        "answer_type": bet.answertype,
-        "is_open": bet.isopen,
-        "is_resolved": bet.isresolved,
+        "answer_type": bet.answer_type,
+        "is_open": bet.is_open,
+        "is_resolved": bet.is_resolved,
         "is_closed": bet.is_closed,
-        "created_at": bet.createdat.isoformat() if isinstance(bet.createdat, datetime) else bet.createdat,
-        "close_at": bet.closeat.isoformat() if isinstance(bet.closeat, datetime) else bet.closeat,
-        "resolved_at": bet.resolvedat.isoformat() if bet.resolvedat is not None and isinstance(bet.resolvedat, datetime) else bet.resolvedat,
-        "correct_answer": bet.correctanswer,
+        "created_at": bet.created_at.isoformat() if isinstance(bet.created_at, datetime) else bet.created_at,
+        "close_at": bet.close_at.isoformat() if isinstance(bet.close_at, datetime) else bet.close_at,
+        "resolved_at": bet.resolved_at.isoformat() if bet.resolved_at is not None and isinstance(bet.resolved_at, datetime) else bet.resolved_at,
+        "correct_answer": bet.correct_answer,
     }).execute()
     return res
 
-def get_bet(betid):
-    res = supabase.table("bets").select("*").eq("bet_id", betid).execute()
+def get_bet(bet_id):
+    res = supabase.table("bets").select("*").eq("bet_id", bet_id).execute()
     data = res.data
     if data:
         b = data[0]
         return Bet(
-            betid=b["bet_id"],
-            createdbyuserid=b["created_by_user_id"],
+            bet_id=b["bet_id"],
+            created_by_user_id=b["created_by_user_id"],
             title=b["title"],
             description=b["description"],
-            answertype=b["answer_type"],
-            isopen=b["is_open"],
-            isresolved=b["is_resolved"],
+            answer_type=b["answer_type"],
+            is_open=b["is_open"],
+            is_resolved=b["is_resolved"],
             is_closed=b.get("is_closed", False),
-            createdat=b["created_at"],
-            closeat=b["close_at"],
-            resolvedat=b["resolved_at"],
-            correctanswer=b["correct_answer"],
+            created_at=b["created_at"],
+            close_at=b["close_at"],
+            resolved_at=b["resolved_at"],
+            correct_answer=b["correct_answer"],
         )
     return None
 
@@ -203,41 +203,41 @@ def close_bet(betid):
     res = supabase.table("bets").update({"is_open": False, "is_closed": True}).eq("bet_id", betid).execute()
     return res
 
-def resolve_bet(betid, correctanswer):
+def resolve_bet(bet_id, correct_answer):
     res = supabase.table("bets").update({
         "is_resolved": True,
-        "correct_answer": correctanswer
-    }).eq("bet_id", betid).execute()
+        "correct_answer": correct_answer
+    }).eq("bet_id", bet_id).execute()
     return res
 
 # PREDICTION FUNCTIONS
 def create_prediction(prediction: Prediction):
     res = supabase.table("predictions").insert({
-        "user_id": prediction.userid,
-        "bet_id": prediction.betid,
+        "user_id": prediction.user_id,
+        "bet_id": prediction.bet_id,
         "prediction": prediction.prediction,
-        "created_at": prediction.createdat.isoformat() if isinstance(prediction.createdat, datetime) else prediction.createdat,
+        "created_at": prediction.created_at.isoformat() if isinstance(prediction.created_at, datetime) else prediction.created_at,
     }).execute()
     return res
 
-def get_predictions_for_bet(betid):
-    res = supabase.table("predictions").select("*").eq("bet_id", betid).execute()
+def get_predictions_for_bet(bet_id):
+    res = supabase.table("predictions").select("*").eq("bet_id", bet_id).execute()
     data = res.data
     preds = []
     for p in data:
         preds.append(Prediction(
-            predictionid=p["prediction_id"],
-            userid=p["user_id"],
-            betid=p["bet_id"],
+            prediction_id=p["prediction_id"],
+            user_id=p["user_id"],
+            bet_id=p["bet_id"],
             prediction=p["prediction"],
-            createdat=p["created_at"]
+            created_at=p["created_at"]
         ))
     return preds
 
-def get_user_predictions(userid):
-    res = supabase.table("predictions").select("*").eq("user_id", userid).execute()
+def get_user_predictions(user_id):
+    res = supabase.table("predictions").select("*").eq("user_id", user_id).execute()
     return res.data
 
-def has_prediction(userid, betid):
-    res = supabase.table("predictions").select("prediction_id").eq("user_id", userid).eq("bet_id", betid).limit(1).execute()
+def has_prediction(user_id, bet_id):
+    res = supabase.table("predictions").select("prediction_id").eq("user_id", user_id).eq("bet_id", bet_id).limit(1).execute()
     return bool(res.data)
