@@ -325,18 +325,19 @@ def resolve_bet_panel(user):
 def user_management_panel():
     st.subheader("Admin: User Management")
     sub_menu = st.radio("Choose action", ["List users", "Promote/Demote", "Change Reedz", "Delete user"])
+    # When listing users, use user.userid consistently
     if sub_menu == "List users":
         users = supabase_db.list_all_users()
-        st.dataframe([
-            {
+        user_data = []
+        for u in users:
+            user_data.append({
                 "UserID": u["user_id"],
                 "Username": u["username"],
-                "Email": u.get("email", ""),
+                "Email": u.get("email", "N/A"),
                 "Role": u["role"],
                 "Reedz": u["reedz_balance"]
-            }
-            for u in users
-        ], use_container_width=True)
+            })
+        st.dataframe(user_data, use_container_width=True)
     elif sub_menu == "Promote/Demote":
         users = supabase_db.list_all_users()
         user_map = {f"{u['username']} (ID {u['user_id']}) - {u['role']}": u['user_id'] for u in users}
@@ -382,13 +383,20 @@ def user_management_panel():
 
 def profile_panel(user):
     st.subheader("My Profile")
-    user_db = supabase_db.get_user_by_id(user.user_id)
+    user_db = supabase_db.get_user_by_id(user.userid)
+    
     if user_db:
-        st.write(f"**Username:** {user_db.username}")
-        st.write(f"**Email:** {user_db.email}")
-        st.write(f"**Reedz Balance:** {user_db.reedz_balance}")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Username:** {user_db.username}")
+            st.write(f"**Email:** {user_db.email}")
+        with col2:
+            st.write(f"**Reedz Balance:** ${user_db.reedzbalance:,}")
+            st.write(f"**Role:** {user_db.role}")
+            st.write(f"**Member Since:** {time_utils.format_et(user_db.createdat)}")
     else:
         st.error("Could not retrieve user profile.")
+
 
 def main_panel():
     user = st.session_state.user
