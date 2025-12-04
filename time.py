@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-ET_ZONE = ZoneInfo("America/New_York")
+et_zone = ZoneInfo("America/New_York")
 
 def utc_to_eastern(utc_dt: datetime | None) -> datetime | None:
     """Convert UTC datetime to Eastern Time (ET/EDT automatically)."""
@@ -9,7 +9,7 @@ def utc_to_eastern(utc_dt: datetime | None) -> datetime | None:
         return None
     if utc_dt.tzinfo is None:
         utc_dt = utc_dt.replace(tzinfo=timezone.utc)
-    return utc_dt.astimezone(ET_ZONE)
+    return utc_dt.astimezone(et_zone)
 
 def format_et(dt_val):
     """Format datetime (string or object) as Eastern Time string."""

@@ -1,14 +1,12 @@
 import supabase_db
 from collections import defaultdict
 
-
 def distribute_reedz_on_resolution(bet_id):
     bet = supabase_db.get_bet(bet_id)
     predictions = supabase_db.get_predictions_for_bet(bet_id)
     num_predictions = len(predictions)
     if num_predictions == 0:
         return
-
     if bet.answer_type == 'number':
         correct = float(bet.correct_answer)
         sorted_preds = sorted(
@@ -31,7 +29,6 @@ def distribute_reedz_on_resolution(bet_id):
             given += len(users_in_group)
         for pred in predictions:
             supabase_db.add_reedz(pred.user_id, scores[pred.user_id])
-
     elif bet.answer_type == 'text':
         correct_answer = bet.correct_answer.strip().lower()
         matches = []
